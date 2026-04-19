@@ -61,6 +61,113 @@ static float clamp01(float v) {
     return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
 }
 
+static float wrapRange(float value, float minValue, float maxValue) {
+    const float span = maxValue - minValue;
+    if (span <= 0.0f) return minValue;
+    while (value < minValue) value += span;
+    while (value > maxValue) value -= span;
+    return value;
+}
+
+static void drawDDALine(float x0, float y0, float x1, float y1, float z) {
+    const int steps = std::max(1, (int)std::max(std::fabs(x1 - x0), std::fabs(y1 - y0)));
+    const float dx = (x1 - x0) / (float)steps;
+    const float dy = (y1 - y0) / (float)steps;
+
+    float x = x0, y = y0;
+    glBegin(GL_POINTS);
+    for (int i = 0; i <= steps; ++i) {
+        glVertex3f(x, y, z);
+        x += dx;
+        y += dy;
+    }
+    glEnd();
+}
+
+static void drawBresenhamLineGrid(int x0, int y0, int x1, int y1,
+                                  float originX, float originY, float scale, float z) {
+    int dx = std::abs(x1 - x0);
+    int sx = (x0 < x1) ? 1 : -1;
+    int dy = -std::abs(y1 - y0);
+    int sy = (y0 < y1) ? 1 : -1;
+    int err = dx + dy;
+
+    glBegin(GL_POINTS);
+    for (;;) {
+        glVertex3f(originX + x0 * scale, originY + y0 * scale, z);
+        if (x0 == x1 && y0 == y1) break;
+        int e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+    glEnd();
+}
+
+static void drawBresenhamCircleGrid(int cx, int cy, int radius,
+                                    float originX, float originY, float scale, float z) {
+    int x = 0;
+    int y = radius;
+    int d = 3 - (2 * radius);
+
+    glBegin(GL_POINTS);
+    while (y >= x) {
+        glVertex3f(originX + (cx + x) * scale, originY + (cy + y) * scale, z);
+        glVertex3f(originX + (cx - x) * scale, originY + (cy + y) * scale, z);
+        glVertex3f(originX + (cx + x) * scale, originY + (cy - y) * scale, z);
+        glVertex3f(originX + (cx - x) * scale, originY + (cy - y) * scale, z);
+        glVertex3f(originX + (cx + y) * scale, originY + (cy + x) * scale, z);
+        glVertex3f(originX + (cx - y) * scale, originY + (cy + x) * scale, z);
+        glVertex3f(originX + (cx + y) * scale, originY + (cy - x) * scale, z);
+        glVertex3f(originX + (cx - y) * scale, originY + (cy - x) * scale, z);
+
+        ++x;
+        if (d > 0) {
+            --y;
+            d = d + 4 * (x - y) + 10;
+        } else {
+            d = d + 4 * x + 6;
+        }
+    }
+    glEnd();
+}
+
+static void drawFilledCircleBresenhamGrid(int cx, int cy, int radius,
+                                          float originX, float originY, float scale, float z) {
+    int x = 0;
+    int y = radius;
+    int d = 3 - (2 * radius);
+
+    while (y >= x) {
+        drawDDALine(originX + (cx - x) * scale, originY + (cy + y) * scale,
+                    originX + (cx + x) * scale, originY + (cy + y) * scale, z);
+        drawDDALine(originX + (cx - x) * scale, originY + (cy - y) * scale,
+                    originX + (cx + x) * scale, originY + (cy - y) * scale, z);
+        drawDDALine(originX + (cx - y) * scale, originY + (cy + x) * scale,
+                    originX + (cx + y) * scale, originY + (cy + x) * scale, z);
+        drawDDALine(originX + (cx - y) * scale, originY + (cy - x) * scale,
+                    originX + (cx + y) * scale, originY + (cy - x) * scale, z);
+
+        ++x;
+        if (d > 0) {
+            --y;
+            d = d + 4 * (x - y) + 10;
+        } else {
+            d = d + 4 * x + 6;
+        }
+    }
+}
+
+static void drawFilledCircleFan(float cx, float cy, float radius, float z, int segments = 36) {
+    if (segments < 12) segments = 12;
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(cx, cy, z);
+    for (int i = 0; i <= segments; ++i) {
+        const float t = (2.0f * 3.14159265f * i) / (float)segments;
+        glVertex3f(cx + radius * std::cos(t), cy + radius * std::sin(t), z);
+    }
+    glEnd();
+}
+
 static void setMaterial(const GLfloat ambient[4], const GLfloat diffuse[4],
                         const GLfloat specular[4], GLfloat shininess) {
     glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT,   ambient);
@@ -676,7 +783,11 @@ static const float kHumanGroundY = -1.10f;
 class HomeEnvironment {
 public:
     HomeEnvironment() :
-        m_cloudOffsetX(0.0f),
+        m_sunTimeSec(0.0f),
+        m_cloudOffsetA(0.0f),
+        m_cloudOffsetB(0.0f),
+        m_cloudOffsetC(0.0f),
+        m_cloudOffsetD(0.0f),
         m_garageOpen(0.0f),
         m_phase(Phase_Walk),
         m_phaseTime(0.0f),
@@ -690,7 +801,11 @@ public:
         m_human.setVisible(true);
         m_human.setWalkSwing(0.0f);
         m_human.setBriefcaseVisible(true);
-        m_cloudOffsetX    = 0.0f;
+        m_sunTimeSec      = 0.0f;
+        m_cloudOffsetA    = 0.0f;
+        m_cloudOffsetB    = 0.0f;
+        m_cloudOffsetC    = 0.0f;
+        m_cloudOffsetD    = 0.0f;
         m_garageOpen      = 0.0f;
         m_phase           = Phase_Walk;
         m_phaseTime       = 0.0f;
@@ -698,8 +813,12 @@ public:
     }
 
     void update(float dt) {
-        m_cloudOffsetX += dt * 0.65f;
-        if (m_cloudOffsetX > 18.0f) m_cloudOffsetX = -18.0f;
+        m_sunTimeSec += dt;
+
+        m_cloudOffsetA = wrapRange(m_cloudOffsetA + dt * 0.38f, -26.0f, 26.0f);
+        m_cloudOffsetB = wrapRange(m_cloudOffsetB + dt * 0.52f, -26.0f, 26.0f);
+        m_cloudOffsetC = wrapRange(m_cloudOffsetC + dt * 0.44f, -26.0f, 26.0f);
+        m_cloudOffsetD = wrapRange(m_cloudOffsetD + dt * 0.60f, -26.0f, 26.0f);
 
         if (currentScene != 1 || m_morningSequenceDone) return;
 
@@ -798,22 +917,56 @@ private:
 
     void drawSkyMorning8AM() const {
         glDisable(GL_LIGHTING);
-        glColor3f(1.0f,0.90f,0.50f);
-        glPushMatrix(); glTranslatef(-9.5f,6.4f,-24.0f); glutSolidSphere(1.2,20,20); glPopMatrix();
+        glPointSize(1.5f);
+
+        const float sunCycleSec = 34.0f;
+        const float sunT = std::fmod(m_sunTimeSec, sunCycleSec) / sunCycleSec;
+        const float sunX = -0.4f + 6.0f * sunT;
+        const float sunY = 6.0f + 0.9f * std::sin(3.14159265f * sunT);
+
+        // Sun gradient: low-yellow outer area + bright yellow center
+        glColor3f(0.98f,0.83f,0.26f);
+        drawFilledCircleFan(sunX, sunY, 0.82f, -24.0f, 80);
+        glColor3f(1.00f,0.95f,0.22f);
+        drawFilledCircleFan(sunX, sunY, 0.48f, -23.99f, 80);
+
+        // Simple rays
+        glColor3f(0.98f,0.84f,0.22f);
+        drawDDALine(sunX - 1.18f, sunY,         sunX - 0.90f, sunY,         -24.0f);
+        drawDDALine(sunX + 0.90f, sunY,         sunX + 1.18f, sunY,         -24.0f);
+        drawDDALine(sunX,         sunY - 1.18f, sunX,         sunY - 0.90f, -24.0f);
+        drawDDALine(sunX,         sunY + 0.90f, sunX,         sunY + 1.18f, -24.0f);
+        drawDDALine(sunX - 0.86f, sunY - 0.86f, sunX - 0.66f, sunY - 0.66f, -24.0f);
+        drawDDALine(sunX + 0.66f, sunY - 0.66f, sunX + 0.86f, sunY - 0.86f, -24.0f);
+        drawDDALine(sunX - 0.86f, sunY + 0.86f, sunX - 0.66f, sunY + 0.66f, -24.0f);
+        drawDDALine(sunX + 0.66f, sunY + 0.66f, sunX + 0.86f, sunY + 0.86f, -24.0f);
+
+        glColor3f(0.98f,0.80f,0.24f);
+        drawBresenhamCircleGrid(0, 0, 16, sunX, sunY, 0.051f, -23.99f);
+
         glColor3f(0.98f,0.98f,0.99f);
-        drawCloud(-12.0f+m_cloudOffsetX, 5.0f,-18.0f);
-        drawCloud( -5.5f+m_cloudOffsetX, 5.7f,-20.0f);
-        drawCloud(  0.8f+m_cloudOffsetX, 4.9f,-17.0f);
-        drawCloud(  8.0f+m_cloudOffsetX, 5.5f,-19.2f);
+        drawCloud(wrapRange(-12.0f + m_cloudOffsetA, -24.0f, 24.0f), 5.0f,-18.0f);
+        drawCloud(wrapRange( -5.5f + m_cloudOffsetB, -24.0f, 24.0f), 5.7f,-20.0f);
+        drawCloud(wrapRange(  0.8f + m_cloudOffsetC, -24.0f, 24.0f), 4.9f,-17.0f);
+        drawCloud(wrapRange(  8.0f + m_cloudOffsetD, -24.0f, 24.0f), 5.5f,-19.2f);
+        glPointSize(1.0f);
         glEnable(GL_LIGHTING);
     }
 
     void drawCloud(float x, float y, float z) const {
-        glPushMatrix(); glTranslatef(x,y,z);
-        glutSolidSphere(0.55,14,14);
-        glTranslatef(0.6f,0.12f,0.1f); glutSolidSphere(0.65,14,14);
-        glTranslatef(-1.1f,-0.02f,0.0f); glutSolidSphere(0.52,14,14);
-        glPopMatrix();
+        glColor3f(0.98f,0.98f,0.99f);
+        drawFilledCircleFan(x,          y,        0.52f, z, 32);
+        drawFilledCircleFan(x + 0.58f,  y + 0.12f,0.58f, z, 32);
+        drawFilledCircleFan(x - 0.56f,  y + 0.01f,0.48f, z, 32);
+
+        // Single filled circle standing with the cloud group
+        drawFilledCircleFan(x + 1.05f, y + 0.34f, 0.22f, z, 28);
+
+        glColor3f(0.88f,0.88f,0.92f);
+        drawBresenhamCircleGrid(0, 0, 9, x,  y, 0.058f, z);
+        drawBresenhamCircleGrid(0, 0,10, x + 0.58f, y + 0.12f, 0.058f, z);
+        drawBresenhamCircleGrid(0, 0, 8, x - 0.56f, y + 0.01f, 0.058f, z);
+        drawBresenhamCircleGrid(0, 0, 4, x + 1.05f, y + 0.34f, 0.058f, z);
     }
 
     void drawForegroundGrass() const {
@@ -918,25 +1071,45 @@ private:
     }
 
     void drawTreeAndBushes() const {
-        const GLfloat tA[]={0.20f,0.12f,0.06f,1}; const GLfloat tD[]={0.44f,0.24f,0.11f,1}; const GLfloat tS[]={0.05f,0.04f,0.03f,1};
-        setMaterial(tA,tD,tS,4.0f);
-        glPushMatrix(); glTranslatef(-6.5f,1.20f,-0.6f); drawScaledCube(0.72f,2.70f,0.70f); glPopMatrix();
+        glDisable(GL_LIGHTING);
 
-        const GLfloat lA[]={0.06f,0.18f,0.07f,1}; const GLfloat lD[]={0.18f,0.52f,0.18f,1}; const GLfloat lS[]={0.05f,0.05f,0.05f,1};
-        setMaterial(lA,lD,lS,6.0f);
-        const float cx[9]={-6.5f,-5.9f,-7.2f,-6.5f,-6.0f,-7.0f,-6.3f,-6.8f,-6.2f};
-        const float cy[9]={ 2.6f, 2.2f, 2.2f, 1.9f, 2.9f, 2.9f, 3.1f, 2.6f, 2.4f};
-        const float cz[9]={-0.6f,-0.2f,-0.3f,-1.1f,-0.9f,-0.9f,-0.5f,-1.1f,-0.8f};
-        const float rs[9]={ 0.92f,0.64f,0.66f,0.76f,0.58f,0.56f,0.48f,0.48f,0.52f};
-        for (int i=0; i<9; ++i) {
-            if (i%2==0) { const GLfloat a2[]={0.05f,0.15f,0.06f,1}; const GLfloat d2[]={0.16f,0.45f,0.17f,1}; const GLfloat s2[]={0.05f,0.05f,0.05f,1}; setMaterial(a2,d2,s2,7.0f); }
-            else setMaterial(lA,lD,lS,6.0f);
-            glPushMatrix(); glTranslatef(cx[i],cy[i],cz[i]); glutSolidSphere(rs[i],20,20); glPopMatrix();
-        }
-        const GLfloat bA[]={0.05f,0.15f,0.06f,1}; const GLfloat bD[]={0.14f,0.42f,0.14f,1}; const GLfloat bS[]={0.04f,0.04f,0.04f,1};
-        setMaterial(bA,bD,bS,5.0f);
-        glPushMatrix(); glTranslatef(-5.1f,-0.55f,0.7f); glutSolidSphere(0.65,18,18); glPopMatrix();
-        glPushMatrix(); glTranslatef(-5.9f,-0.58f,0.5f); glutSolidSphere(0.56,18,18); glPopMatrix();
+        // Trunk
+        glColor3f(0.45f,0.28f,0.16f);
+        glBegin(GL_QUADS);
+        glVertex3f(-6.93f,-0.55f,-0.45f);
+        glVertex3f(-6.27f,-0.55f,-0.45f);
+        glVertex3f(-6.27f, 2.05f,-0.45f);
+        glVertex3f(-6.93f, 2.05f,-0.45f);
+        glEnd();
+
+        glColor3f(0.30f,0.16f,0.08f);
+        drawDDALine(-6.93f,-0.55f,-6.93f,2.05f,-0.44f);
+        drawDDALine(-6.27f,-0.55f,-6.27f,2.05f,-0.44f);
+        drawDDALine(-6.60f, 1.50f,-7.30f,2.15f,-0.44f);
+        drawDDALine(-6.60f, 1.62f,-5.90f,2.28f,-0.44f);
+
+        // Canopy (proper filled tree crown)
+        glColor3f(0.16f,0.52f,0.20f);
+        drawFilledCircleFan(-6.60f, 2.70f, 0.95f, -0.47f, 38);
+        drawFilledCircleFan(-5.95f, 2.38f, 0.80f, -0.47f, 34);
+        drawFilledCircleFan(-7.25f, 2.38f, 0.80f, -0.47f, 34);
+        drawFilledCircleFan(-6.60f, 3.18f, 0.62f, -0.47f, 30);
+
+        glColor3f(0.11f,0.36f,0.14f);
+        drawBresenhamCircleGrid(0, 0, 16, -6.60f, 2.70f, 0.06f, -0.46f);
+        drawBresenhamCircleGrid(0, 0, 13, -5.95f, 2.38f, 0.06f, -0.46f);
+        drawBresenhamCircleGrid(0, 0, 13, -7.25f, 2.38f, 0.06f, -0.46f);
+
+        // Bushes
+        glColor3f(0.15f,0.45f,0.16f);
+        drawFilledCircleFan(-5.10f, -0.50f, 0.50f, 0.70f, 30);
+        drawFilledCircleFan(-5.85f, -0.54f, 0.42f, 0.50f, 28);
+        glColor3f(0.10f,0.32f,0.12f);
+        drawBresenhamCircleGrid(0, 0, 8, -5.10f, -0.50f, 0.06f, 0.70f);
+        drawBresenhamCircleGrid(0, 0, 7, -5.85f, -0.54f, 0.06f, 0.50f);
+
+        glPointSize(1.0f);
+        glEnable(GL_LIGHTING);
     }
 
     void drawFence() const {
@@ -954,7 +1127,11 @@ private:
         glPushMatrix(); glTranslatef( 7.5f,-0.40f,1.2f); drawScaledCube(7.0f,0.08f,0.10f); glPopMatrix();
     }
 
-    float        m_cloudOffsetX;
+    float        m_sunTimeSec;
+    float        m_cloudOffsetA;
+    float        m_cloudOffsetB;
+    float        m_cloudOffsetC;
+    float        m_cloudOffsetD;
     Car          m_car;
     Human        m_human;
     float        m_garageOpen;

@@ -8,10 +8,10 @@
 	<algorithm>
 	<utility>
 
-1770991834 c:\program files\codeblocks\mingw\x86_64-w64-mingw32\include\gl\glut.h
+1632060800 c:\program files\codeblocks\mingw\x86_64-w64-mingw32\include\gl\glut.h
 	"freeglut_std.h"
 
-1770991834 c:\program files\codeblocks\mingw\x86_64-w64-mingw32\include\gl\freeglut_std.h
+1632060797 c:\program files\codeblocks\mingw\x86_64-w64-mingw32\include\gl\freeglut_std.h
 	<windows.h>
 	<EGL/egl.h>
 	<GLES/gl.h>
@@ -877,4 +877,13 @@
 
 1526093414 c:\program files\codeblocks\mingw\x86_64-w64-mingw32\include\gl\glu.h
 	<GL/gl.h>
+
+1776625223 source:c:\users\administrator\desktop\life-of-a-office-worker-in-a-modern-urban-area\main.cpp
+	<GLUT/glut.h>
+	<GL/glut.h>
+	<cmath>
+	<cstdlib>
+	<vector>
+	<algorithm>
+	<utility>
 
