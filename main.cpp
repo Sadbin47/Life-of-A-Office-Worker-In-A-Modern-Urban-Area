@@ -59,12 +59,13 @@ const float FADE_ALPHA_STEP = 0.03f;         // Alpha increase/decrease per fram
 
 int currentScene = 1;         // Scene state machine variable (1 to 9)
 int sceneFrameCounter = 0;    // Counts frames spent in current scene
+int totalFrameCounter = 0;    // Counts total frames across all scenes
 
 bool isSceneTransitionActive = false; // True while fade transition is running
 bool isFadeOutPhase = false;          // True = alpha rising, False = alpha falling
 float fadeOverlayAlpha = 0.0f;        // Current fade quad alpha (0.0 to 1.0)
 
-bool showTextOverlay = true; // Set true to draw scene title and frame counter
+bool showTextOverlay = false; // Panel already shows scene info and frame count
 
 // ==========================================================
 // ====== GLOBAL ENVIRONMENT ANIMATION VARIABLES ============
@@ -125,18 +126,34 @@ bool characterPointingPose = false;   // Right arm points toward board
 // ====== SCENE-SPECIFIC ANIMATION VARIABLES =================
 // ==========================================================
 
-// Scene 1: Morning home departure.
-float carPositionX_scene1 = 392.0f;
-float carPositionY_scene1 = 318.0f;
-float wheelRotationAngle_scene1 = 0.0f;
+// Scene 1: Rainy morning departure (Developer 1 module).
+float scene1_carPosX = 392.0f;          // Car starts inside garage (X)
+float scene1_carPosY = 318.0f;          // Car starts inside garage (Y)
+float wheelRotationAngle = 0.0f;        // Shared wheel angle for Scene 1 and Scene 9
 
-int scene1DrivePhase = 0;          // 0 = driveway movement, 1 = road movement
-bool scene1HasCarExitedScreen = false; // True only after car completely leaves right side
+// Smaller increments make animation smoother and easier to observe.
+float animationSpeed = 1.0f;
 
-const float scene1DrivewayStartX = 392.0f; // Car initial X near garage door center
-const float scene1DrivewayStartY = 318.0f; // Car initial Y near garage floor
-const float scene1RoadEntryX = 340.0f;     // X where car reaches road lane
-const float scene1RoadTravelY = 72.0f;     // Y lane center on road
+// Pause stops updates but keeps rendering the last frame.
+bool isPaused = false;
+
+// This allows interactive control of environment.
+bool isRainEnabled = false;  // Start in sunny mode; press R to enable rain
+
+// Scene 1 car state machine:
+// 0 = inside garage, 1 = moving forward, 2 = moving right
+int carState_scene1 = 0;
+bool scene1HasCarExitedScreen = false;  // True only after x > 1280
+
+// Rain uses fixed-size arrays for viva-friendly explanation.
+const int RAIN_DROP_COUNT = 130;
+float rainDropX[RAIN_DROP_COUNT];
+float rainDropY[RAIN_DROP_COUNT];
+
+const float scene1GarageStartX = 392.0f;    // Initial car X inside garage
+const float scene1GarageStartY = 318.0f;    // Initial car Y inside garage
+const float scene1RoadTravelY = 72.0f;      // Car Y while driving on road
+const float scene1ExitCheckX = 1280.0f;     // Scene can change only after x > 1280
 
 // Scene 2: Morning traffic.
 float trafficCarPositionX_scene2_A = -180.0f;
@@ -199,21 +216,22 @@ float trafficCarWheelAngle_scene8_C = 0.0f;
 
 float parallaxOffset_scene8 = 0.0f;
 
-// Scene 9: Return home at night.
-float carPositionX_scene9 = -220.0f;
-float carPositionY_scene9 = 72.0f;
-float wheelRotationAngle_scene9 = 0.0f;
-float carSpeed_scene9 = 4.0f;
-float garageDoorOpenRatio_scene9 = 0.0f;
+// Scene 9: Night return (Developer 1 module).
+float scene9_carPosX = -220.0f;         // Car enters from left side
+float scene9_carPosY = 72.0f;           // Car road lane Y at scene start
 
-int scene9DrivePhase = 0;            // 0 = horizontal entry, 1 = vertical into garage, 2 = parked
-int scene9ParkedFrameCounter = 0;    // Count parked frames before allowing scene transition
-bool scene9ParkingCompleted = false; // True when car fully stops inside garage
+// Scene 9 car state machine:
+// 0 = move right, 1 = move up into garage, 2 = parked
+int carState_scene9 = 0;
+int scene9ParkedFrameCounter = 0;       // Small hold time before transition
+bool scene9ParkingCompleted = false;    // True when car fully stops in garage
 
-const float scene9RoadTravelY = 72.0f;      // Night return road lane Y
-const float scene9DrivewayEntryX = 340.0f;  // X where car begins moving up driveway
-const float scene9GarageParkingX = 392.0f;  // Final X when car is parked in garage
-const float scene9GarageParkingY = 318.0f;  // Final Y when car is parked in garage
+bool isHouseLightOn = false;            // Lights turn on when car fully parks
+
+const float scene9RoadTravelY = 72.0f;      // Car road lane Y in Scene 9
+const float scene9DrivewayEntryX = 340.0f;  // X where car starts moving up driveway
+const float scene9GarageParkingX = 392.0f;  // Final parked X inside garage
+const float scene9GarageParkingY = 318.0f;  // Final parked Y inside garage
 
 // Shared home layout constants used by Scene 1 and Scene 9.
 const float homeRoadBottomY = 0.0f;             // Bottom of dark road strip
@@ -263,7 +281,9 @@ void drawCar(float carPositionX, float carPositionY, float bodyRed, float bodyGr
              bool taillightsEnabled = false,
              bool faceRight = true);
 
-void drawHouse();
+void initRain();
+void drawRain();
+void drawHouse(bool isLit);
 void drawTree(float treeBaseX, float treeBaseY);
 void drawBuilding(float buildingPositionX, float buildingBottomY, float buildingWidth, float buildingHeight);
 void drawRoad();
@@ -272,6 +292,7 @@ void drawFan(float fanCenterX, float fanCenterY);
 void drawCloud(float cloudCenterX, float cloudCenterY);
 void drawStars();
 void drawTextIfNeeded();
+void drawControlHints();
 
 void drawBitmapText(float textPositionX, float textPositionY, const char* textString);
 void drawSun(float sunCenterX, float sunCenterY);
@@ -834,6 +855,51 @@ void drawTextIfNeeded() {
     drawBitmapText(20.0f, 667.0f, frameInfoText);
 }
 
+void drawControlHints() {
+    // Top-left info and keyboard hint panel.
+    const float panelLeftX = 14.0f;
+    const float panelTopY = 706.0f;
+    const float panelWidth = 430.0f;
+    const float panelHeight = 196.0f;
+    const float panelBottomY = panelTopY - panelHeight;
+
+    const char* sceneNames[10] = {
+        "",
+        "Scene 1: Rainy Morning Departure",
+        "Scene 2: Morning Traffic",
+        "Scene 3: Office Arrival",
+        "Scene 4: Main Office Work",
+        "Scene 5: Coffee Break",
+        "Scene 6: Presentation",
+        "Scene 7: Leaving Office",
+        "Scene 8: Evening Traffic",
+        "Scene 9: Night Return"
+    };
+
+    char frameCountText[80];
+    std::snprintf(frameCountText, sizeof(frameCountText), "Frame: %d", totalFrameCounter);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glColor4f(0.0f, 0.0f, 0.0f, 0.38f);
+    drawRectangle(panelLeftX, panelBottomY, panelWidth, panelHeight);
+
+    glDisable(GL_BLEND);
+
+    glColor3f(1.0f, 1.0f, 1.0f);
+    drawBitmapText(panelLeftX + 10.0f, panelTopY - 20.0f, "Scene info:");
+    drawBitmapText(panelLeftX + 10.0f, panelTopY - 44.0f, sceneNames[currentScene]);
+
+    drawBitmapText(panelLeftX + 10.0f, panelTopY - 74.0f, "Keybinds:");
+    drawBitmapText(panelLeftX + 10.0f, panelTopY - 98.0f,  "SPACE : Pause / Resume");
+    drawBitmapText(panelLeftX + 10.0f, panelTopY - 120.0f, "R     : Rain ON");
+    drawBitmapText(panelLeftX + 10.0f, panelTopY - 142.0f, "V     : Rain OFF");
+    drawBitmapText(panelLeftX + 10.0f, panelTopY - 164.0f, "N     : Restart from Scene 1");
+
+    drawBitmapText(panelLeftX + 10.0f, panelTopY - 186.0f, frameCountText);
+}
+
 void drawSun(float sunCenterX, float sunCenterY) {
     glColor3f(1.0f, 0.92f, 0.32f);
     drawFilledCircle(sunCenterX, sunCenterY, 36.0f, 36);
@@ -1116,133 +1182,81 @@ void drawPresentationBoard(float boardLeftX, float boardBottomY, float boardWidt
 // ====== DEVELOPER 1: HOME MODULE (SCENE 1 & 9) ============
 // ==========================================================
 
-void drawHouse() {
-    // Main wall body.
-    if (houseNightMode) {
-        glColor3f(0.30f, 0.34f, 0.40f);
-    } else {
-        glColor3f(0.88f, 0.82f, 0.68f);
+void initRain() {
+    for (int rainIndex = 0; rainIndex < RAIN_DROP_COUNT; ++rainIndex) {
+        rainDropX[rainIndex] = static_cast<float>(std::rand() % WINDOW_WIDTH);
+        rainDropY[rainIndex] = static_cast<float>(std::rand() % WINDOW_HEIGHT);
     }
+}
+
+void drawRain() {
+    if (!isRainEnabled) {
+        return;
+    }
+
+    // Rain is simulated by repeatedly moving line segments downward.
+    glColor3f(0.70f, 0.74f, 0.80f);
+    glLineWidth(1.4f);
+    glBegin(GL_LINES);
+    for (int rainIndex = 0; rainIndex < RAIN_DROP_COUNT; ++rainIndex) {
+        glVertex2f(rainDropX[rainIndex], rainDropY[rainIndex]);
+        glVertex2f(rainDropX[rainIndex] + 3.0f, rainDropY[rainIndex] - 14.0f);
+    }
+    glEnd();
+    glLineWidth(1.0f);
+}
+
+void drawHouse(bool isLit) {
+    // This quad represents the house wall.
+    glColor3f(0.76f, 0.72f, 0.66f);
     drawRectangle(homeHouseLeftX, homeHouseBottomY, homeHouseWidth, homeHouseHeight);
 
-    // Roof overhang strip.
-    if (houseNightMode) {
-        glColor3f(0.22f, 0.15f, 0.14f);
-    } else {
-        glColor3f(0.66f, 0.28f, 0.22f);
-    }
-    drawRectangle(
-        homeHouseLeftX - 16.0f,
-        homeHouseBottomY + homeHouseHeight - 8.0f,
-        homeHouseWidth + 32.0f,
-        16.0f
-    );
-
-    // Triangular main roof.
+    // This triangle represents the roof.
+    glColor3f(0.44f, 0.22f, 0.18f);
     glBegin(GL_TRIANGLES);
-    glVertex2f(homeHouseLeftX - 26.0f, homeHouseBottomY + homeHouseHeight + 8.0f);                    // Roof left overhang corner
-    glVertex2f(homeHouseLeftX + homeHouseWidth + 26.0f, homeHouseBottomY + homeHouseHeight + 8.0f);    // Roof right overhang corner
-    glVertex2f(homeHouseLeftX + homeHouseWidth * 0.5f, homeHouseBottomY + homeHouseHeight + 142.0f);   // Roof top peak
+    glVertex2f(homeHouseLeftX - 26.0f, homeHouseBottomY + homeHouseHeight + 8.0f);
+    glVertex2f(homeHouseLeftX + homeHouseWidth + 26.0f, homeHouseBottomY + homeHouseHeight + 8.0f);
+    glVertex2f(homeHouseLeftX + homeHouseWidth * 0.5f, homeHouseBottomY + homeHouseHeight + 142.0f);
     glEnd();
 
-    // Chimney block.
-    if (houseNightMode) {
-        glColor3f(0.36f, 0.28f, 0.24f);
-    } else {
-        glColor3f(0.58f, 0.36f, 0.30f);
-    }
+    // This quad represents a chimney.
+    glColor3f(0.56f, 0.34f, 0.30f);
     drawRectangle(homeHouseLeftX + 322.0f, homeHouseBottomY + homeHouseHeight + 66.0f, 28.0f, 72.0f);
 
-    // Front entrance area.
-    if (houseNightMode) {
-        glColor3f(0.40f, 0.30f, 0.20f);
-    } else {
-        glColor3f(0.50f, 0.34f, 0.20f);
-    }
-    drawRectangle(homeHouseLeftX + 88.0f, homeHouseBottomY, 64.0f, 110.0f); // Main door panel
+    // This quad represents the main door.
+    glColor3f(0.50f, 0.34f, 0.20f);
+    drawRectangle(homeHouseLeftX + 88.0f, homeHouseBottomY, 64.0f, 110.0f);
 
-    // Door frame border.
-    glColor3f(0.12f, 0.12f, 0.12f);
-    drawRectangle(homeHouseLeftX + 84.0f, homeHouseBottomY - 2.0f, 4.0f, 114.0f);   // Left frame line
-    drawRectangle(homeHouseLeftX + 152.0f, homeHouseBottomY - 2.0f, 4.0f, 114.0f);  // Right frame line
-    drawRectangle(homeHouseLeftX + 84.0f, homeHouseBottomY + 108.0f, 72.0f, 4.0f);  // Top frame line
-
-    // Door handle.
+    // This circle represents the door handle.
     glColor3f(0.92f, 0.74f, 0.20f);
     drawFilledCircle(homeHouseLeftX + 140.0f, homeHouseBottomY + 52.0f, 3.0f, 18);
 
-    // Window glass color by time.
-    if (houseNightMode) {
-        glColor3f(0.98f, 0.90f, 0.56f); // Yellow glow at night
+    // Window color logic:
+    // - Scene 1 uses dim blue windows for rainy mood.
+    // - Scene 9 starts dark and becomes bright yellow when the car fully parks.
+    if (currentScene == 1) {
+        glColor3f(0.56f, 0.72f, 0.82f);
     } else {
-        glColor3f(0.62f, 0.84f, 0.96f); // Light blue in morning
+        if (isLit) {
+            glColor3f(0.98f, 0.90f, 0.56f);
+        } else {
+            glColor3f(0.20f, 0.24f, 0.30f);
+        }
     }
 
-    // Window rectangles.
-    drawRectangle(homeHouseLeftX + 190.0f, homeHouseBottomY + 68.0f, 88.0f, 64.0f);  // Lower middle window
-    drawRectangle(homeHouseLeftX + 318.0f, homeHouseBottomY + 68.0f, 88.0f, 64.0f);  // Lower right window
-    drawRectangle(homeHouseLeftX + 190.0f, homeHouseBottomY + 162.0f, 88.0f, 64.0f); // Upper middle window
-    drawRectangle(homeHouseLeftX + 318.0f, homeHouseBottomY + 162.0f, 88.0f, 64.0f); // Upper right window
+    // These quads represent house windows.
+    drawRectangle(homeHouseLeftX + 190.0f, homeHouseBottomY + 68.0f, 88.0f, 64.0f);
+    drawRectangle(homeHouseLeftX + 318.0f, homeHouseBottomY + 68.0f, 88.0f, 64.0f);
+    drawRectangle(homeHouseLeftX + 190.0f, homeHouseBottomY + 162.0f, 88.0f, 64.0f);
+    drawRectangle(homeHouseLeftX + 318.0f, homeHouseBottomY + 162.0f, 88.0f, 64.0f);
 
-    // Dark window frame lines.
-    glColor3f(0.10f, 0.10f, 0.12f);
-    glLineWidth(2.0f);
-    glBegin(GL_LINES);
-    // Lower middle window frame cross
-    glVertex2f(homeHouseLeftX + 234.0f, homeHouseBottomY + 68.0f);  glVertex2f(homeHouseLeftX + 234.0f, homeHouseBottomY + 132.0f);
-    glVertex2f(homeHouseLeftX + 190.0f, homeHouseBottomY + 100.0f); glVertex2f(homeHouseLeftX + 278.0f, homeHouseBottomY + 100.0f);
-    // Lower right window frame cross
-    glVertex2f(homeHouseLeftX + 362.0f, homeHouseBottomY + 68.0f);  glVertex2f(homeHouseLeftX + 362.0f, homeHouseBottomY + 132.0f);
-    glVertex2f(homeHouseLeftX + 318.0f, homeHouseBottomY + 100.0f); glVertex2f(homeHouseLeftX + 406.0f, homeHouseBottomY + 100.0f);
-    // Upper middle window frame cross
-    glVertex2f(homeHouseLeftX + 234.0f, homeHouseBottomY + 162.0f); glVertex2f(homeHouseLeftX + 234.0f, homeHouseBottomY + 226.0f);
-    glVertex2f(homeHouseLeftX + 190.0f, homeHouseBottomY + 194.0f); glVertex2f(homeHouseLeftX + 278.0f, homeHouseBottomY + 194.0f);
-    // Upper right window frame cross
-    glVertex2f(homeHouseLeftX + 362.0f, homeHouseBottomY + 162.0f); glVertex2f(homeHouseLeftX + 362.0f, homeHouseBottomY + 226.0f);
-    glVertex2f(homeHouseLeftX + 318.0f, homeHouseBottomY + 194.0f); glVertex2f(homeHouseLeftX + 406.0f, homeHouseBottomY + 194.0f);
-    glEnd();
-    glLineWidth(1.0f);
-
-    // Garage attached to house right-lower side.
-    if (houseNightMode) {
-        glColor3f(0.26f, 0.30f, 0.36f);
-    } else {
-        glColor3f(0.82f, 0.78f, 0.66f);
-    }
+    // This quad represents the garage body.
+    glColor3f(0.68f, 0.66f, 0.62f);
     drawRectangle(homeGarageLeftX, homeGarageBottomY, homeGarageWidth, homeGarageHeight);
 
-    // Garage roof cap.
-    if (houseNightMode) {
-        glColor3f(0.20f, 0.14f, 0.14f);
-    } else {
-        glColor3f(0.62f, 0.24f, 0.20f);
-    }
-    drawRectangle(homeGarageLeftX - 8.0f, homeGarageBottomY + homeGarageHeight - 6.0f, homeGarageWidth + 16.0f, 12.0f);
-
-    // Garage opening interior.
-    glColor3f(0.06f, 0.06f, 0.08f);
+    // This quad represents the garage opening.
+    glColor3f(0.08f, 0.08f, 0.10f);
     drawRectangle(homeGarageDoorLeftX, homeGarageDoorBottomY, homeGarageDoorWidth, homeGarageDoorHeight);
-
-    // Garage shutter door slides up using garageDoorOpenRatio_house.
-    const float visibleGarageDoorHeight = homeGarageDoorHeight * (1.0f - garageDoorOpenRatio_house);
-    if (visibleGarageDoorHeight > 1.0f) {
-        if (houseNightMode) {
-            glColor3f(0.46f, 0.48f, 0.54f);
-        } else {
-            glColor3f(0.80f, 0.80f, 0.84f);
-        }
-
-        const float slidingDoorY = homeGarageDoorBottomY + (homeGarageDoorHeight - visibleGarageDoorHeight);
-        drawRectangle(homeGarageDoorLeftX, slidingDoorY, homeGarageDoorWidth, visibleGarageDoorHeight);
-
-        // Horizontal shutter lines.
-        glColor3f(0.56f, 0.56f, 0.60f);
-        for (float shutterLineY = slidingDoorY + 14.0f;
-             shutterLineY < slidingDoorY + visibleGarageDoorHeight;
-             shutterLineY += 14.0f) {
-            drawRectangle(homeGarageDoorLeftX, shutterLineY, homeGarageDoorWidth, 2.0f);
-        }
-    }
 }
 
 // ==========================================================
@@ -1253,18 +1267,32 @@ void drawHouse() {
 // SCENE 2: MORNING TRAFFIC
 // -----------------------------------------
 void drawScene2MorningTraffic() {
-    // Morning to afternoon bright blue sky.
-    drawVerticalSkyGradient(
-        0.44f, 0.74f, 0.95f, // Bottom sky color
-        0.68f, 0.89f, 0.99f  // Top sky color
-    );
+    if (!isRainEnabled) {
+        // Morning to afternoon bright blue sky.
+        drawVerticalSkyGradient(
+            0.44f, 0.74f, 0.95f,
+            0.68f, 0.89f, 0.99f
+        );
 
-    drawSun(980.0f + sunHorizontalOffset * 0.35f, 610.0f);
+        drawSun(980.0f + sunHorizontalOffset * 0.35f, 610.0f);
 
-    // Clouds move slowly from left to right.
-    drawCloud(220.0f + cloudOffsetX_layerA, 610.0f);
-    drawCloud(560.0f + cloudOffsetX_layerB, 640.0f);
-    drawCloud(920.0f + cloudOffsetX_layerA * 0.8f, 600.0f);
+        // Clouds move slowly from left to right.
+        drawCloud(220.0f + cloudOffsetX_layerA, 610.0f);
+        drawCloud(560.0f + cloudOffsetX_layerB, 640.0f);
+        drawCloud(920.0f + cloudOffsetX_layerA * 0.8f, 600.0f);
+    } else {
+        // Rain mode sky for Scene 2 (no sun while raining).
+        drawVerticalSkyGradient(
+            0.26f, 0.28f, 0.32f,
+            0.36f, 0.38f, 0.42f
+        );
+
+        // Dark clouds while raining.
+        glColor3f(0.28f, 0.30f, 0.34f);
+        drawFilledEllipse(240.0f + cloudOffsetX_layerA * 0.32f, 620.0f, 170.0f, 45.0f, 36);
+        drawFilledEllipse(640.0f + cloudOffsetX_layerB * 0.30f, 646.0f, 190.0f, 50.0f, 36);
+        drawFilledEllipse(1000.0f + cloudOffsetX_layerA * 0.26f, 612.0f, 180.0f, 46.0f, 36);
+    }
 
     // Parallax city: far buildings move slower than traffic cars.
     drawParallaxCity(parallaxOffset_scene2, false);
@@ -1450,17 +1478,31 @@ void drawParkingBarrier(float pivotX, float pivotY, float rotationAngleDegrees) 
 // SCENE 3: OFFICE ARRIVAL
 // -----------------------------------------
 void drawScene3OfficeArrival() {
-    // Afternoon sky.
-    drawVerticalSkyGradient(
-        0.48f, 0.72f, 0.92f, // Bottom sky color
-        0.70f, 0.86f, 0.98f  // Top sky color
-    );
+    if (!isRainEnabled) {
+        // Afternoon sky.
+        drawVerticalSkyGradient(
+            0.48f, 0.72f, 0.92f,
+            0.70f, 0.86f, 0.98f
+        );
 
-    drawSun(1090.0f + sunHorizontalOffset * 0.22f, 610.0f);
+        drawSun(1090.0f + sunHorizontalOffset * 0.22f, 610.0f);
 
-    // Clouds are visible in early daytime scenes (1 to 3).
-    drawCloud(230.0f + cloudOffsetX_layerA * 0.7f, 598.0f);
-    drawCloud(640.0f + cloudOffsetX_layerB * 0.7f, 632.0f);
+        // Clouds are visible in early daytime scenes (1 to 3).
+        drawCloud(230.0f + cloudOffsetX_layerA * 0.7f, 598.0f);
+        drawCloud(640.0f + cloudOffsetX_layerB * 0.7f, 632.0f);
+    } else {
+        // Rain mode sky for Scene 3 (no sun while raining).
+        drawVerticalSkyGradient(
+            0.24f, 0.27f, 0.31f,
+            0.34f, 0.37f, 0.41f
+        );
+
+        // Dark clouds while raining.
+        glColor3f(0.26f, 0.29f, 0.33f);
+        drawFilledEllipse(250.0f + cloudOffsetX_layerA * 0.28f, 612.0f, 180.0f, 46.0f, 36);
+        drawFilledEllipse(700.0f + cloudOffsetX_layerB * 0.30f, 640.0f, 200.0f, 50.0f, 36);
+        drawFilledEllipse(1040.0f + cloudOffsetX_layerA * 0.24f, 608.0f, 170.0f, 44.0f, 36);
+    }
 
     // Distant city behind office.
     drawParallaxCity(parallaxOffset_scene2 * 0.4f, false);
@@ -1680,49 +1722,115 @@ void drawScene6Presentation() {
 // SCENE 1: MORNING HOME DEPARTURE
 // -----------------------------------------
 void drawScene1MorningHomeDeparture() {
-    // Scene 1 uses a dedicated morning sky.
-    drawMorningHomeSky();
+    // Weather toggle:
+    // - Rain OFF: old morning look with sun and clouds.
+    // - Rain ON : dark sky with wet ground.
+    if (!isRainEnabled) {
+        drawMorningHomeSky();
+        drawHomeGroundAndDriveway(false);
+    } else {
+        // Overcast rainy sky.
+        drawVerticalSkyGradient(
+            0.24f, 0.26f, 0.29f,
+            0.36f, 0.38f, 0.41f
+        );
 
-    // Ground fix: dark road at bottom, grass above, clean driveway.
-    drawHomeGroundAndDriveway(false);
+        // Dark cloud masses.
+        glColor3f(0.28f, 0.30f, 0.32f);
+        drawFilledEllipse(220.0f + cloudOffsetX_layerA * 0.30f, 632.0f, 170.0f, 46.0f, 40);
+        drawFilledEllipse(620.0f + cloudOffsetX_layerB * 0.30f, 654.0f, 190.0f, 52.0f, 40);
+        drawFilledEllipse(980.0f + cloudOffsetX_layerA * 0.24f, 620.0f, 180.0f, 48.0f, 40);
 
-    // Trees for yard depth.
-    drawTree(74.0f, 128.0f);  // Left tree base in lawn
-    drawTree(640.0f, 134.0f); // Mid-right tree base in lawn
-    drawTree(760.0f, 126.0f); // Right tree base in lawn
+        // Bottom dark gray road.
+        glColor3f(0.18f, 0.18f, 0.20f);
+        drawRectangle(0.0f, homeRoadBottomY, 1280.0f, homeRoadHeight);
 
-    // Draw improved house and garage.
-    houseNightMode = false;
-    drawHouse();
+        // Road top edge line for clean separation.
+        glColor3f(0.56f, 0.58f, 0.62f);
+        drawRectangle(0.0f, homeRoadBottomY + homeRoadHeight - 3.0f, 1280.0f, 3.0f);
 
-    // Car departs home.
-    drawCar(carPositionX_scene1, carPositionY_scene1, 0.84f, 0.20f, 0.18f,
-            wheelRotationAngle_scene1, false, false, true);
+        // Muted green grass above road.
+        glColor3f(0.30f, 0.42f, 0.34f);
+        drawRectangle(0.0f, homeGrassBottomY, 1280.0f, homeGrassHeight);
+
+        // Driveway polygon from garage to road.
+        glColor3f(0.48f, 0.48f, 0.50f);
+        glBegin(GL_POLYGON);
+        glVertex2f(homeDrivewayRoadLeftX, homeDrivewayRoadY);
+        glVertex2f(homeDrivewayRoadRightX, homeDrivewayRoadY);
+        glVertex2f(homeDrivewayGarageRightX, homeDrivewayGarageY);
+        glVertex2f(homeDrivewayGarageLeftX, homeDrivewayGarageY);
+        glEnd();
+
+        // Wet road patches (simple puddles).
+        glColor3f(0.60f, 0.62f, 0.66f);
+        drawFilledEllipse(180.0f, 72.0f, 58.0f, 14.0f, 32);
+        drawFilledEllipse(540.0f, 74.0f, 70.0f, 15.0f, 32);
+        drawFilledEllipse(930.0f, 70.0f, 62.0f, 13.0f, 32);
+    }
+
+    // Trees in yard.
+    drawTree(74.0f, 128.0f);
+    drawTree(640.0f, 134.0f);
+    drawTree(760.0f, 126.0f);
+
+    // House with dim rainy windows.
+    drawHouse(false);
+
+    // Departure car.
+    drawCar(scene1_carPosX, scene1_carPosY, 0.84f, 0.20f, 0.18f,
+            wheelRotationAngle, false, false, true);
+
+    // Rain is rendered globally from display() so all scenes share the same weather.
 }
 
 // -----------------------------------------
 // SCENE 9: RETURN HOME
 // -----------------------------------------
 void drawScene9ReturnHome() {
-    // Scene 9 uses dark sky with moon and stars.
-    drawNightHomeSky();
+    // Dark blue night sky.
+    drawVerticalSkyGradient(
+        0.05f, 0.08f, 0.18f,
+        0.11f, 0.16f, 0.28f
+    );
 
-    // Ground fix at night mode.
-    drawHomeGroundAndDriveway(true);
+    // Stars use GL_POINTS.
+    drawStars();
 
-    // Night trees silhouette.
-    drawTree(74.0f, 128.0f);  // Left tree base in lawn
-    drawTree(640.0f, 134.0f); // Mid-right tree base in lawn
-    drawTree(760.0f, 126.0f); // Right tree base in lawn
+    // Simple moon.
+    drawMoon(1030.0f, 620.0f);
 
-    // House with warm windows at night.
-    houseNightMode = true;
-    garageDoorOpenRatio_house = garageDoorOpenRatio_scene9;
-    drawHouse();
+    // Bottom dark road.
+    glColor3f(0.10f, 0.10f, 0.12f);
+    drawRectangle(0.0f, homeRoadBottomY, 1280.0f, homeRoadHeight);
 
-    // Returning car with headlights and taillights.
-    drawCar(carPositionX_scene9, carPositionY_scene9, 0.84f, 0.20f, 0.18f,
-            wheelRotationAngle_scene9, true, true, true);
+    // Night grass tone.
+    glColor3f(0.12f, 0.24f, 0.15f);
+    drawRectangle(0.0f, homeGrassBottomY, 1280.0f, homeGrassHeight);
+
+    // Driveway polygon.
+    glColor3f(0.30f, 0.32f, 0.34f);
+    glBegin(GL_POLYGON);
+    glVertex2f(homeDrivewayRoadLeftX, homeDrivewayRoadY);
+    glVertex2f(homeDrivewayRoadRightX, homeDrivewayRoadY);
+    glVertex2f(homeDrivewayGarageRightX, homeDrivewayGarageY);
+    glVertex2f(homeDrivewayGarageLeftX, homeDrivewayGarageY);
+    glEnd();
+
+    // Trees in night scene.
+    drawTree(74.0f, 128.0f);
+    drawTree(640.0f, 134.0f);
+    drawTree(760.0f, 126.0f);
+
+    // House windows are dark first; turn bright when car fully parks.
+    drawHouse(isHouseLightOn);
+
+    // Headlights stay on while car is moving.
+    const bool headlightsOn = (carState_scene9 != 2);
+
+    // Return car with headlights and taillights.
+    drawCar(scene9_carPosX, scene9_carPosY, 0.84f, 0.20f, 0.18f,
+            wheelRotationAngle, headlightsOn, true, true);
 }
 
 // ==========================================================
@@ -1744,47 +1852,31 @@ void initializeSteamParticles() {
 }
 
 void updateScene1Animation() {
-    // Garage opens quickly at the beginning of departure scene.
-    const int garageOpeningDurationFrames_scene1 = 70;
-    garageDoorOpenRatio_house = clampFloat(
-        static_cast<float>(sceneFrameCounter) / static_cast<float>(garageOpeningDurationFrames_scene1),
-        0.0f,
-        1.0f
-    );
+    // Scene 1 state 0: car starts inside garage and waits one frame.
+    if (carState_scene1 == 0) {
+        carState_scene1 = 1;
+    }
 
-    // Phase 0: car moves from garage driveway to road lane.
-    if (scene1DrivePhase == 0) {
-        const float drivewayMoveStepX = 1.1f; // X shift per frame toward road center
-        const float drivewayMoveStepY = 4.2f; // Y drop per frame from driveway to road
+    // Scene 1 state 1: car moves forward out of garage (down the driveway).
+    if (carState_scene1 == 1) {
+        const float forwardStepY = 1.6f * animationSpeed;
+        scene1_carPosY -= forwardStepY;
+        wheelRotationAngle -= forwardStepY * 2.0f;
 
-        float movedDistance = 0.0f;
-
-        if (carPositionX_scene1 > scene1RoadEntryX) {
-            carPositionX_scene1 -= drivewayMoveStepX;
-            movedDistance += drivewayMoveStepX;
-        }
-        if (carPositionY_scene1 > scene1RoadTravelY) {
-            carPositionY_scene1 -= drivewayMoveStepY;
-            movedDistance += drivewayMoveStepY;
-        }
-
-        wheelRotationAngle_scene1 -= movedDistance * 3.8f;
-
-        if (carPositionX_scene1 <= scene1RoadEntryX && carPositionY_scene1 <= scene1RoadTravelY) {
-            carPositionX_scene1 = scene1RoadEntryX;
-            carPositionY_scene1 = scene1RoadTravelY;
-            scene1DrivePhase = 1;
+        if (scene1_carPosY <= scene1RoadTravelY) {
+            scene1_carPosY = scene1RoadTravelY;
+            carState_scene1 = 2;
         }
     }
 
-    // Phase 1: car moves horizontally to the right and exits full screen.
-    if (scene1DrivePhase == 1) {
-        const float roadMoveStep_scene1 = 4.6f; // Horizontal road speed
-        carPositionX_scene1 += roadMoveStep_scene1;
-        wheelRotationAngle_scene1 -= roadMoveStep_scene1 * 3.8f;
+    // Scene 1 state 2: car moves horizontally right.
+    if (carState_scene1 == 2) {
+        const float rightStepX = 2.0f * animationSpeed;
+        scene1_carPosX += rightStepX;
+        wheelRotationAngle -= rightStepX * 2.0f;
 
-        // Scene transition is allowed only after this condition becomes true.
-        if (carPositionX_scene1 > WINDOW_WIDTH + 200.0f) {
+        // Scene can transition only after car fully passes right boundary.
+        if (scene1_carPosX > scene1ExitCheckX) {
             scene1HasCarExitedScreen = true;
         }
     }
@@ -1967,56 +2059,50 @@ void updateScene8Animation() {
 }
 
 void updateScene9Animation() {
-    // Phase 0: car enters from left and moves horizontally right on road.
-    if (scene9DrivePhase == 0) {
-        const float roadSpeed_scene9 = carSpeed_scene9; // Road approach speed
-        carPositionX_scene9 += roadSpeed_scene9;
-        carPositionY_scene9 = scene9RoadTravelY;
-        wheelRotationAngle_scene9 -= roadSpeed_scene9 * 3.8f;
+    // Scene 9 state 0: car enters from left and moves right.
+    if (carState_scene9 == 0) {
+        const float rightStepX = 1.8f * animationSpeed;
+        scene9_carPosX += rightStepX;
+        scene9_carPosY = scene9RoadTravelY;
+        wheelRotationAngle -= rightStepX * 2.0f;
 
-        // Garage door starts opening when car is close to driveway.
-        if (carPositionX_scene9 > 180.0f) {
-            garageDoorOpenRatio_scene9 += 0.018f;
-            garageDoorOpenRatio_scene9 = clampFloat(garageDoorOpenRatio_scene9, 0.0f, 1.0f);
-        }
-
-        if (carPositionX_scene9 >= scene9DrivewayEntryX) {
-            carPositionX_scene9 = scene9DrivewayEntryX;
-            scene9DrivePhase = 1;
+        if (scene9_carPosX >= scene9DrivewayEntryX) {
+            scene9_carPosX = scene9DrivewayEntryX;
+            carState_scene9 = 1;
         }
     }
 
-    // Phase 1: car moves upward into garage (with slight rightward alignment).
-    if (scene9DrivePhase == 1) {
-        const float drivewayMoveStepX_scene9 = 0.90f; // X alignment toward garage center
-        const float drivewayMoveStepY_scene9 = 4.00f; // Y move into garage interior
+    // Scene 9 state 1: car moves up driveway into garage.
+    if (carState_scene9 == 1) {
+        const float upStepY = 1.4f * animationSpeed;
+        const float alignStepX = 0.7f * animationSpeed;
 
-        float movedDistance = 0.0f;
-
-        if (carPositionX_scene9 < scene9GarageParkingX) {
-            carPositionX_scene9 += drivewayMoveStepX_scene9;
-            movedDistance += drivewayMoveStepX_scene9;
+        if (scene9_carPosX < scene9GarageParkingX) {
+            scene9_carPosX += alignStepX;
         }
-        if (carPositionY_scene9 < scene9GarageParkingY) {
-            carPositionY_scene9 += drivewayMoveStepY_scene9;
-            movedDistance += drivewayMoveStepY_scene9;
+        if (scene9_carPosY < scene9GarageParkingY) {
+            scene9_carPosY += upStepY;
         }
 
-        wheelRotationAngle_scene9 -= movedDistance * 3.6f;
+        wheelRotationAngle -= (upStepY + alignStepX) * 1.8f;
 
-        garageDoorOpenRatio_scene9 += 0.010f;
-        garageDoorOpenRatio_scene9 = clampFloat(garageDoorOpenRatio_scene9, 0.0f, 1.0f);
+        if (scene9_carPosX >= scene9GarageParkingX) {
+            scene9_carPosX = scene9GarageParkingX;
+        }
+        if (scene9_carPosY >= scene9GarageParkingY) {
+            scene9_carPosY = scene9GarageParkingY;
+        }
 
-        if (carPositionX_scene9 >= scene9GarageParkingX && carPositionY_scene9 >= scene9GarageParkingY) {
-            carPositionX_scene9 = scene9GarageParkingX;
-            carPositionY_scene9 = scene9GarageParkingY;
-            scene9DrivePhase = 2;
+        if (scene9_carPosX >= scene9GarageParkingX && scene9_carPosY >= scene9GarageParkingY) {
+            carState_scene9 = 2;
             scene9ParkingCompleted = true;
+            // This simulates someone turning lights on when the person arrives home.
+            isHouseLightOn = true;
         }
     }
 
-    // Phase 2: parked state (stable final pose in garage).
-    if (scene9DrivePhase == 2) {
+    // Scene 9 state 2: parked hold.
+    if (carState_scene9 == 2) {
         scene9ParkedFrameCounter += 1;
     }
 }
@@ -2028,12 +2114,12 @@ void updateScene9Animation() {
 void resetVariablesForScene(int sceneIndex) {
     // Reset variables each time scene changes, to keep behavior deterministic.
     if (sceneIndex == 1) {
-        carPositionX_scene1 = scene1DrivewayStartX;
-        carPositionY_scene1 = scene1DrivewayStartY;
-        wheelRotationAngle_scene1 = 0.0f;
-        garageDoorOpenRatio_house = 0.0f;
-        scene1DrivePhase = 0;
+        scene1_carPosX = scene1GarageStartX;
+        scene1_carPosY = scene1GarageStartY;
+        wheelRotationAngle = 0.0f;
+        carState_scene1 = 0;
         scene1HasCarExitedScreen = false;
+        initRain();
     }
 
     if (sceneIndex == 2) {
@@ -2097,14 +2183,13 @@ void resetVariablesForScene(int sceneIndex) {
     }
 
     if (sceneIndex == 9) {
-        carPositionX_scene9 = -220.0f;
-        carPositionY_scene9 = scene9RoadTravelY;
-        wheelRotationAngle_scene9 = 0.0f;
-        carSpeed_scene9 = 4.0f;
-        garageDoorOpenRatio_scene9 = 0.0f;
-        scene9DrivePhase = 0;
+        scene9_carPosX = -220.0f;
+        scene9_carPosY = scene9RoadTravelY;
+        wheelRotationAngle = 0.0f;
+        carState_scene9 = 0;
         scene9ParkedFrameCounter = 0;
         scene9ParkingCompleted = false;
+        isHouseLightOn = false;
     }
 }
 
@@ -2184,6 +2269,17 @@ void display() {
         default: drawScene1MorningHomeDeparture(); break;
     }
 
+    // Global rain overlay:
+    // If rain is enabled, rain appears only in outdoor scenes.
+    const bool isOutdoorScene = (currentScene == 1 || currentScene == 2 || currentScene == 3 ||
+                                 currentScene == 7 || currentScene == 8 || currentScene == 9);
+    if (isRainEnabled && isOutdoorScene) {
+        drawRain();
+    }
+
+    // Always show key hints on left side.
+    drawControlHints();
+
     drawTextIfNeeded();
 
     // Smooth fade transition overlay.
@@ -2202,6 +2298,16 @@ void display() {
 }
 
 void update(int value) {
+    totalFrameCounter += 1;
+
+    // Pause stops updates but keeps rendering the last frame.
+    if (isPaused) {
+        glutPostRedisplay();
+        glutTimerFunc(TIMER_INTERVAL_MS, update, 0);
+        (void)value;
+        return;
+    }
+
     // Shared environment updates.
     cloudOffsetX_layerA += 0.32f;
     cloudOffsetX_layerB += 0.22f;
@@ -2213,6 +2319,18 @@ void update(int value) {
 
     if (sunHorizontalOffset > 220.0f) {
         sunHorizontalOffset = -220.0f;
+    }
+
+    // Global rain update so rain animation works in all scenes.
+    if (isRainEnabled) {
+        const float rainFallStep = 1.1f * animationSpeed;
+        for (int rainIndex = 0; rainIndex < RAIN_DROP_COUNT; ++rainIndex) {
+            rainDropY[rainIndex] -= rainFallStep;
+            if (rainDropY[rainIndex] < -20.0f) {
+                rainDropY[rainIndex] = ORTHO_TOP_Y + static_cast<float>(std::rand() % 120);
+                rainDropX[rainIndex] = static_cast<float>(std::rand() % WINDOW_WIDTH);
+            }
+        }
     }
 
     // Update active scene animation.
@@ -2280,14 +2398,31 @@ void update(int value) {
 }
 
 void keyboard(unsigned char key, int x, int y) {
-    // Toggle text with 't', restart scene cycle with 'r', quit with ESC.
+    // Press SPACE to pause/resume animation.
+    if (key == ' ') {
+        isPaused = !isPaused;
+    }
+
+    // Press R to enable rain.
+    if (key == 'r' || key == 'R') {
+        isRainEnabled = true;
+    }
+
+    // Press V to disable rain.
+    if (key == 'v' || key == 'V') {
+        isRainEnabled = false;
+    }
+
+    // Keep text overlay toggle with T.
     if (key == 't' || key == 'T') {
         showTextOverlay = !showTextOverlay;
     }
 
-    if (key == 'r' || key == 'R') {
+    // Keep manual restart with N.
+    if (key == 'n' || key == 'N') {
         currentScene = 1;
         sceneFrameCounter = 0;
+        totalFrameCounter = 0;
         fadeOverlayAlpha = 0.0f;
         isSceneTransitionActive = false;
         isFadeOutPhase = false;
