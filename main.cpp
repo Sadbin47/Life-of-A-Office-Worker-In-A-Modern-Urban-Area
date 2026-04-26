@@ -126,9 +126,17 @@ bool characterPointingPose = false;   // Right arm points toward board
 // ==========================================================
 
 // Scene 1: Morning home departure.
-float carPositionX_scene1 = 220.0f;
-float carPositionY_scene1 = 178.0f;
+float carPositionX_scene1 = 392.0f;
+float carPositionY_scene1 = 318.0f;
 float wheelRotationAngle_scene1 = 0.0f;
+
+int scene1DrivePhase = 0;          // 0 = driveway movement, 1 = road movement
+bool scene1HasCarExitedScreen = false; // True only after car completely leaves right side
+
+const float scene1DrivewayStartX = 392.0f; // Car initial X near garage door center
+const float scene1DrivewayStartY = 318.0f; // Car initial Y near garage floor
+const float scene1RoadEntryX = 340.0f;     // X where car reaches road lane
+const float scene1RoadTravelY = 72.0f;     // Y lane center on road
 
 // Scene 2: Morning traffic.
 float trafficCarPositionX_scene2_A = -180.0f;
@@ -192,11 +200,48 @@ float trafficCarWheelAngle_scene8_C = 0.0f;
 float parallaxOffset_scene8 = 0.0f;
 
 // Scene 9: Return home at night.
-float carPositionX_scene9 = 1450.0f;
-float carPositionY_scene9 = 178.0f;
+float carPositionX_scene9 = -220.0f;
+float carPositionY_scene9 = 72.0f;
 float wheelRotationAngle_scene9 = 0.0f;
-float carSpeed_scene9 = 3.8f;
+float carSpeed_scene9 = 4.0f;
 float garageDoorOpenRatio_scene9 = 0.0f;
+
+int scene9DrivePhase = 0;            // 0 = horizontal entry, 1 = vertical into garage, 2 = parked
+int scene9ParkedFrameCounter = 0;    // Count parked frames before allowing scene transition
+bool scene9ParkingCompleted = false; // True when car fully stops inside garage
+
+const float scene9RoadTravelY = 72.0f;      // Night return road lane Y
+const float scene9DrivewayEntryX = 340.0f;  // X where car begins moving up driveway
+const float scene9GarageParkingX = 392.0f;  // Final X when car is parked in garage
+const float scene9GarageParkingY = 318.0f;  // Final Y when car is parked in garage
+
+// Shared home layout constants used by Scene 1 and Scene 9.
+const float homeRoadBottomY = 0.0f;             // Bottom of dark road strip
+const float homeRoadHeight = 110.0f;            // Road thickness
+const float homeGrassBottomY = 110.0f;          // Grass starts immediately above road
+const float homeGrassHeight = 190.0f;           // Grass vertical size
+
+const float homeDrivewayRoadLeftX = 250.0f;     // Driveway lower-left near road
+const float homeDrivewayRoadRightX = 430.0f;    // Driveway lower-right near road
+const float homeDrivewayRoadY = 110.0f;         // Driveway lower edge touches grass-top/road-top
+const float homeDrivewayGarageLeftX = 300.0f;   // Driveway upper-left near garage door
+const float homeDrivewayGarageRightX = 500.0f;  // Driveway upper-right near garage door
+const float homeDrivewayGarageY = 300.0f;       // Driveway upper edge at garage floor
+
+const float homeHouseLeftX = 140.0f;            // Main house body left edge
+const float homeHouseBottomY = 300.0f;          // Main house body bottom edge
+const float homeHouseWidth = 420.0f;            // Main house body width
+const float homeHouseHeight = 250.0f;           // Main house body height
+
+const float homeGarageLeftX = 280.0f;           // Garage box left edge
+const float homeGarageBottomY = 300.0f;         // Garage box bottom edge
+const float homeGarageWidth = 240.0f;           // Garage width
+const float homeGarageHeight = 170.0f;          // Garage height
+
+const float homeGarageDoorLeftX = 312.0f;       // Garage opening left edge
+const float homeGarageDoorBottomY = 300.0f;     // Garage opening bottom edge
+const float homeGarageDoorWidth = 176.0f;       // Garage opening width
+const float homeGarageDoorHeight = 126.0f;      // Garage opening height
 
 // ==========================================================
 // ====== FORWARD DECLARATIONS ===============================
@@ -219,6 +264,7 @@ void drawCar(float carPositionX, float carPositionY, float bodyRed, float bodyGr
              bool faceRight = true);
 
 void drawHouse();
+void drawTree(float treeBaseX, float treeBaseY);
 void drawBuilding(float buildingPositionX, float buildingBottomY, float buildingWidth, float buildingHeight);
 void drawRoad();
 void drawCharacter(float characterPositionX, float characterPositionY);
@@ -230,6 +276,9 @@ void drawTextIfNeeded();
 void drawBitmapText(float textPositionX, float textPositionY, const char* textString);
 void drawSun(float sunCenterX, float sunCenterY);
 void drawMoon(float moonCenterX, float moonCenterY);
+void drawMorningHomeSky();
+void drawNightHomeSky();
+void drawHomeGroundAndDriveway(bool nightMode);
 void drawParallaxCity(float baseParallaxOffset, bool nightMode);
 void drawStreetLight(float poleBaseX, float poleBaseY, bool glowEnabled);
 void drawOfficeComplex(bool eveningLightingEnabled);
@@ -366,28 +415,40 @@ void drawVerticalSkyGradient(float bottomRed, float bottomGreen, float bottomBlu
 // ==========================================================
 
 void drawWheel(float wheelCenterX, float wheelCenterY, float wheelRotationAngle) {
-    const float tireOuterRadius = 16.0f; // Outer black tire radius
-    const float rimRadius = 8.0f;        // Inner metallic rim radius
+    const float tireOuterRadius = 16.0f; // Outer tire radius
+    const float tireInnerRadius = 13.0f; // Inner tire ring radius
+    const float rimRadius = 8.0f;        // Metallic rim radius
 
     glPushMatrix();
     glTranslatef(wheelCenterX, wheelCenterY, 0.0f);
     glRotatef(wheelRotationAngle, 0.0f, 0.0f, 1.0f);
 
-    glColor3f(0.07f, 0.07f, 0.07f);
-    drawFilledCircle(0.0f, 0.0f, tireOuterRadius, 32);
+    // Tire outer rubber.
+    glColor3f(0.06f, 0.06f, 0.07f);
+    drawFilledCircle(0.0f, 0.0f, tireOuterRadius, 36);
 
-    glColor3f(0.65f, 0.65f, 0.68f);
-    drawFilledCircle(0.0f, 0.0f, rimRadius, 28);
+    // Tire inner ring.
+    glColor3f(0.14f, 0.14f, 0.16f);
+    drawFilledCircle(0.0f, 0.0f, tireInnerRadius, 34);
 
-    glColor3f(0.90f, 0.90f, 0.92f);
+    // Rim.
+    glColor3f(0.68f, 0.68f, 0.72f);
+    drawFilledCircle(0.0f, 0.0f, rimRadius, 30);
+
+    // Spokes.
+    glColor3f(0.92f, 0.92f, 0.94f);
     glLineWidth(2.0f);
     glBegin(GL_LINES);
-    glVertex2f(-rimRadius, 0.0f); glVertex2f(rimRadius, 0.0f);   // Horizontal spoke
-    glVertex2f(0.0f, -rimRadius); glVertex2f(0.0f, rimRadius);   // Vertical spoke
-    glVertex2f(-5.5f, -5.5f);     glVertex2f(5.5f, 5.5f);        // Diagonal spoke 1
-    glVertex2f(-5.5f, 5.5f);      glVertex2f(5.5f, -5.5f);       // Diagonal spoke 2
+    glVertex2f(-rimRadius, 0.0f); glVertex2f(rimRadius, 0.0f);       // Horizontal spoke
+    glVertex2f(0.0f, -rimRadius); glVertex2f(0.0f, rimRadius);       // Vertical spoke
+    glVertex2f(-5.5f, -5.5f);     glVertex2f(5.5f, 5.5f);            // Diagonal spoke 1
+    glVertex2f(-5.5f, 5.5f);      glVertex2f(5.5f, -5.5f);           // Diagonal spoke 2
     glEnd();
     glLineWidth(1.0f);
+
+    // Hub cap center.
+    glColor3f(0.82f, 0.82f, 0.86f);
+    drawFilledCircle(0.0f, 0.0f, 2.8f, 16);
 
     glPopMatrix();
 }
@@ -397,8 +458,8 @@ void drawCar(float carPositionX, float carPositionY, float bodyRed, float bodyGr
              bool headlightsEnabled,
              bool taillightsEnabled,
              bool faceRight) {
-    const float carBodyWidth = 140.0f;      // Main body width
-    const float carBodyHeight = 30.0f;      // Main body height
+    const float carBodyWidth = 142.0f;      // Main body width
+    const float carBodyHeight = 32.0f;      // Main body height
     const float wheelOffsetX = 42.0f;       // Horizontal distance from center to each wheel
     const float wheelCenterY = -2.0f;       // Wheel center Y relative to car origin
 
@@ -409,38 +470,44 @@ void drawCar(float carPositionX, float carPositionY, float bodyRed, float bodyGr
         glScalef(-1.0f, 1.0f, 1.0f); // Mirror car to face left
     }
 
-    // Simple shadow under car for better depth feeling.
+    // Soft shadow under car for depth.
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glColor4f(0.0f, 0.0f, 0.0f, 0.28f);
-    drawFilledEllipse(0.0f, -10.0f, 72.0f, 11.0f, 36);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.24f);
+    drawFilledEllipse(0.0f, -10.0f, 74.0f, 11.0f, 36);
 
     // Car lower body.
     glColor3f(bodyRed, bodyGreen, bodyBlue);
     drawRectangle(-carBodyWidth * 0.5f, 0.0f, carBodyWidth, carBodyHeight);
 
-    // Car upper roof section.
+    // Car roof section.
     glBegin(GL_POLYGON);
-    glVertex2f(-36.0f, 30.0f); // Rear roof lower point
-    glVertex2f( 40.0f, 30.0f); // Front roof lower point
-    glVertex2f( 20.0f, 56.0f); // Front roof upper point
-    glVertex2f(-18.0f, 56.0f); // Rear roof upper point
+    glVertex2f(-38.0f, 32.0f); // Rear roof lower point
+    glVertex2f( 42.0f, 32.0f); // Front roof lower point
+    glVertex2f( 20.0f, 58.0f); // Front roof upper point
+    glVertex2f(-20.0f, 58.0f); // Rear roof upper point
     glEnd();
 
-    // Window glass.
-    glColor3f(0.62f, 0.82f, 0.95f);
+    // Front and rear bumper strips.
+    glColor3f(0.18f, 0.18f, 0.20f);
+    drawRectangle( 64.0f, 8.0f, 10.0f, 14.0f); // Front bumper block
+    drawRectangle(-74.0f, 8.0f, 10.0f, 14.0f); // Rear bumper block
+
+    // Window glass panel.
+    glColor3f(0.64f, 0.84f, 0.96f);
     glBegin(GL_POLYGON);
-    glVertex2f(-30.0f, 33.0f); // Rear window bottom-left
-    glVertex2f( 33.0f, 33.0f); // Front window bottom-right
-    glVertex2f( 16.0f, 52.0f); // Front window top-right
-    glVertex2f(-14.0f, 52.0f); // Rear window top-left
+    glVertex2f(-30.0f, 35.0f); // Rear window bottom-left
+    glVertex2f( 34.0f, 35.0f); // Front window bottom-right
+    glVertex2f( 16.0f, 54.0f); // Front window top-right
+    glVertex2f(-14.0f, 54.0f); // Rear window top-left
     glEnd();
 
-    // Door split line.
+    // Door split line and side molding.
     glColor3f(0.20f, 0.20f, 0.20f);
     glLineWidth(2.0f);
     glBegin(GL_LINES);
-    glVertex2f(0.0f, 2.0f); glVertex2f(0.0f, 52.0f); // Middle door separation
+    glVertex2f(0.0f, 2.0f);  glVertex2f(0.0f, 55.0f);  // Middle door separation
+    glVertex2f(-58.0f, 14.0f); glVertex2f(58.0f, 14.0f); // Side molding line
     glEnd();
     glLineWidth(1.0f);
 
@@ -448,23 +515,27 @@ void drawCar(float carPositionX, float carPositionY, float bodyRed, float bodyGr
     drawWheel(-wheelOffsetX, wheelCenterY, wheelRotationAngle);
     drawWheel( wheelOffsetX, wheelCenterY, wheelRotationAngle);
 
-    // Headlights as transparent yellow triangles (fake lighting effect).
+    // Headlights: transparent yellow triangles for fake light beam.
     if (headlightsEnabled) {
-        glColor4f(1.0f, 0.96f, 0.45f, 0.33f);
+        glColor4f(1.0f, 0.96f, 0.42f, 0.30f);
         glBegin(GL_TRIANGLES);
         glVertex2f(70.0f, 20.0f);   // Triangle origin at front bumper
-        glVertex2f(180.0f, 56.0f);  // Upper light spread point
-        glVertex2f(180.0f, -8.0f);  // Lower light spread point
+        glVertex2f(186.0f, 58.0f);  // Upper light spread point
+        glVertex2f(186.0f, -10.0f); // Lower light spread point
         glEnd();
 
         glColor3f(1.0f, 1.0f, 0.72f);
-        drawRectangle(66.0f, 14.0f, 8.0f, 8.0f); // Physical headlight block
+        drawRectangle(66.0f, 14.0f, 8.0f, 8.0f); // Headlight block
     }
 
-    // Rear taillights.
+    // Taillights: red blocks plus soft glow.
     if (taillightsEnabled) {
         glColor3f(0.95f, 0.08f, 0.08f);
-        drawRectangle(-74.0f, 16.0f, 8.0f, 8.0f); // Rear taillight block
+        drawRectangle(-74.0f, 16.0f, 8.0f, 8.0f); // Upper taillight
+        drawRectangle(-74.0f, 6.0f, 8.0f, 8.0f);  // Lower taillight
+
+        glColor4f(0.95f, 0.12f, 0.12f, 0.24f);
+        drawFilledEllipse(-74.0f, 15.0f, 14.0f, 10.0f, 24); // Red glow halo
     }
 
     glDisable(GL_BLEND);
@@ -482,6 +553,21 @@ void drawCloud(float cloudCenterX, float cloudCenterY) {
     drawFilledCircle(cloudCenterX - 30.0f,  cloudCenterY - 4.0f,   leftPuffRadius,   24);
     drawFilledCircle(cloudCenterX + 30.0f,  cloudCenterY - 2.0f,   rightPuffRadius,  24);
     drawFilledCircle(cloudCenterX + 2.0f,   cloudCenterY + 18.0f,  topPuffRadius,    24);
+}
+
+void drawTree(float treeBaseX, float treeBaseY) {
+    // Tree trunk.
+    glColor3f(0.42f, 0.24f, 0.12f);
+    drawRectangle(treeBaseX - 10.0f, treeBaseY, 20.0f, 72.0f); // Trunk body
+
+    // Layered leaf canopy for depth.
+    glColor3f(0.18f, 0.52f, 0.20f);
+    drawFilledCircle(treeBaseX, treeBaseY + 90.0f, 32.0f, 28);  // Lower center leaves
+    drawFilledCircle(treeBaseX - 24.0f, treeBaseY + 82.0f, 24.0f, 24); // Left leaves
+    drawFilledCircle(treeBaseX + 24.0f, treeBaseY + 84.0f, 24.0f, 24); // Right leaves
+
+    glColor3f(0.14f, 0.44f, 0.16f);
+    drawFilledCircle(treeBaseX, treeBaseY + 116.0f, 26.0f, 24); // Top leaves
 }
 
 void drawStars() {
@@ -772,6 +858,80 @@ void drawMoon(float moonCenterX, float moonCenterY) {
     drawFilledCircle(moonCenterX + 10.0f, moonCenterY + 4.0f, 26.0f, 34);
 }
 
+void drawMorningHomeSky() {
+    // Light blue morning sky gradient.
+    drawVerticalSkyGradient(
+        0.68f, 0.88f, 0.99f, // Bottom sky tint
+        0.88f, 0.96f, 1.00f  // Top sky tint
+    );
+
+    // Sun at upper-right region.
+    drawSun(1020.0f + sunHorizontalOffset * 0.20f, 620.0f);
+
+    // Morning clouds.
+    drawCloud(210.0f + cloudOffsetX_layerA * 0.70f, 620.0f);
+    drawCloud(520.0f + cloudOffsetX_layerB * 0.60f, 650.0f);
+    drawCloud(870.0f + cloudOffsetX_layerA * 0.50f, 606.0f);
+}
+
+void drawNightHomeSky() {
+    // Dark navy night sky gradient.
+    drawVerticalSkyGradient(
+        0.04f, 0.06f, 0.14f, // Bottom night tint
+        0.10f, 0.14f, 0.24f  // Top night tint
+    );
+
+    // Moon and stars.
+    drawMoon(1030.0f, 620.0f);
+    drawStars();
+}
+
+void drawHomeGroundAndDriveway(bool nightMode) {
+    // Bottom road (dark gray, full width).
+    if (nightMode) {
+        glColor3f(0.10f, 0.10f, 0.12f);
+    } else {
+        glColor3f(0.20f, 0.20f, 0.22f);
+    }
+    drawRectangle(0.0f, homeRoadBottomY, 1280.0f, homeRoadHeight);
+
+    // Road top edge line.
+    glColor3f(0.66f, 0.66f, 0.70f);
+    drawRectangle(0.0f, homeRoadBottomY + homeRoadHeight - 3.0f, 1280.0f, 3.0f);
+
+    // Grass area above road.
+    if (nightMode) {
+        glColor3f(0.12f, 0.24f, 0.14f);
+    } else {
+        glColor3f(0.26f, 0.58f, 0.30f);
+    }
+    drawRectangle(0.0f, homeGrassBottomY, 1280.0f, homeGrassHeight);
+
+    // Driveway polygon connecting garage to road (no gap with road).
+    if (nightMode) {
+        glColor3f(0.30f, 0.31f, 0.34f);
+    } else {
+        glColor3f(0.52f, 0.52f, 0.56f);
+    }
+    glBegin(GL_POLYGON);
+    glVertex2f(homeDrivewayRoadLeftX,  homeDrivewayRoadY);  // Lower-left driveway corner near road
+    glVertex2f(homeDrivewayRoadRightX, homeDrivewayRoadY);  // Lower-right driveway corner near road
+    glVertex2f(homeDrivewayGarageRightX, homeDrivewayGarageY); // Upper-right driveway corner near garage
+    glVertex2f(homeDrivewayGarageLeftX,  homeDrivewayGarageY); // Upper-left driveway corner near garage
+    glEnd();
+
+    // Driveway side highlight lines.
+    glColor3f(0.72f, 0.72f, 0.74f);
+    glLineWidth(2.0f);
+    glBegin(GL_LINES);
+    glVertex2f(homeDrivewayRoadLeftX, homeDrivewayRoadY);
+    glVertex2f(homeDrivewayGarageLeftX, homeDrivewayGarageY);
+    glVertex2f(homeDrivewayRoadRightX, homeDrivewayRoadY);
+    glVertex2f(homeDrivewayGarageRightX, homeDrivewayGarageY);
+    glEnd();
+    glLineWidth(1.0f);
+}
+
 void drawParallaxCity(float baseParallaxOffset, bool nightMode) {
     buildingWindowNightMode = nightMode;
 
@@ -957,115 +1117,132 @@ void drawPresentationBoard(float boardLeftX, float boardBottomY, float boardWidt
 // ==========================================================
 
 void drawHouse() {
-    // House base coordinates.
-    const float houseLeftX = 80.0f;      // Main house left edge
-    const float houseBottomY = 180.0f;   // Main house bottom edge
-    const float houseWidth = 380.0f;     // Main house width
-    const float houseHeight = 220.0f;    // Main house body height
-
-    const float garageLeftX = 110.0f;    // Garage left edge
-    const float garageBottomY = 180.0f;  // Garage floor level
-    const float garageWidth = 180.0f;    // Garage width
-    const float garageHeight = 120.0f;   // Garage body height
-
-    // House wall color changes at night.
+    // Main wall body.
     if (houseNightMode) {
-        glColor3f(0.28f, 0.30f, 0.36f);
+        glColor3f(0.30f, 0.34f, 0.40f);
     } else {
-        glColor3f(0.86f, 0.80f, 0.66f);
+        glColor3f(0.88f, 0.82f, 0.68f);
     }
-    drawRectangle(houseLeftX, houseBottomY, houseWidth, houseHeight);
+    drawRectangle(homeHouseLeftX, homeHouseBottomY, homeHouseWidth, homeHouseHeight);
 
-    // Roof triangle.
+    // Roof overhang strip.
     if (houseNightMode) {
-        glColor3f(0.22f, 0.16f, 0.16f);
+        glColor3f(0.22f, 0.15f, 0.14f);
     } else {
-        glColor3f(0.65f, 0.26f, 0.20f);
+        glColor3f(0.66f, 0.28f, 0.22f);
     }
+    drawRectangle(
+        homeHouseLeftX - 16.0f,
+        homeHouseBottomY + homeHouseHeight - 8.0f,
+        homeHouseWidth + 32.0f,
+        16.0f
+    );
+
+    // Triangular main roof.
     glBegin(GL_TRIANGLES);
-    glVertex2f(houseLeftX - 25.0f,              houseBottomY + houseHeight);       // Roof left corner
-    glVertex2f(houseLeftX + houseWidth + 25.0f, houseBottomY + houseHeight);       // Roof right corner
-    glVertex2f(houseLeftX + houseWidth * 0.5f,  houseBottomY + houseHeight + 110.0f); // Roof top peak
+    glVertex2f(homeHouseLeftX - 26.0f, homeHouseBottomY + homeHouseHeight + 8.0f);                    // Roof left overhang corner
+    glVertex2f(homeHouseLeftX + homeHouseWidth + 26.0f, homeHouseBottomY + homeHouseHeight + 8.0f);    // Roof right overhang corner
+    glVertex2f(homeHouseLeftX + homeHouseWidth * 0.5f, homeHouseBottomY + homeHouseHeight + 142.0f);   // Roof top peak
     glEnd();
 
-    // Garage body.
+    // Chimney block.
     if (houseNightMode) {
-        glColor3f(0.24f, 0.26f, 0.30f);
+        glColor3f(0.36f, 0.28f, 0.24f);
     } else {
-        glColor3f(0.80f, 0.76f, 0.64f);
+        glColor3f(0.58f, 0.36f, 0.30f);
     }
-    drawRectangle(garageLeftX, garageBottomY, garageWidth, garageHeight);
+    drawRectangle(homeHouseLeftX + 322.0f, homeHouseBottomY + homeHouseHeight + 66.0f, 28.0f, 72.0f);
 
-    // Garage interior opening.
+    // Front entrance area.
+    if (houseNightMode) {
+        glColor3f(0.40f, 0.30f, 0.20f);
+    } else {
+        glColor3f(0.50f, 0.34f, 0.20f);
+    }
+    drawRectangle(homeHouseLeftX + 88.0f, homeHouseBottomY, 64.0f, 110.0f); // Main door panel
+
+    // Door frame border.
+    glColor3f(0.12f, 0.12f, 0.12f);
+    drawRectangle(homeHouseLeftX + 84.0f, homeHouseBottomY - 2.0f, 4.0f, 114.0f);   // Left frame line
+    drawRectangle(homeHouseLeftX + 152.0f, homeHouseBottomY - 2.0f, 4.0f, 114.0f);  // Right frame line
+    drawRectangle(homeHouseLeftX + 84.0f, homeHouseBottomY + 108.0f, 72.0f, 4.0f);  // Top frame line
+
+    // Door handle.
+    glColor3f(0.92f, 0.74f, 0.20f);
+    drawFilledCircle(homeHouseLeftX + 140.0f, homeHouseBottomY + 52.0f, 3.0f, 18);
+
+    // Window glass color by time.
+    if (houseNightMode) {
+        glColor3f(0.98f, 0.90f, 0.56f); // Yellow glow at night
+    } else {
+        glColor3f(0.62f, 0.84f, 0.96f); // Light blue in morning
+    }
+
+    // Window rectangles.
+    drawRectangle(homeHouseLeftX + 190.0f, homeHouseBottomY + 68.0f, 88.0f, 64.0f);  // Lower middle window
+    drawRectangle(homeHouseLeftX + 318.0f, homeHouseBottomY + 68.0f, 88.0f, 64.0f);  // Lower right window
+    drawRectangle(homeHouseLeftX + 190.0f, homeHouseBottomY + 162.0f, 88.0f, 64.0f); // Upper middle window
+    drawRectangle(homeHouseLeftX + 318.0f, homeHouseBottomY + 162.0f, 88.0f, 64.0f); // Upper right window
+
+    // Dark window frame lines.
     glColor3f(0.10f, 0.10f, 0.12f);
-    drawRectangle(garageLeftX + 12.0f, garageBottomY + 10.0f, garageWidth - 24.0f, garageHeight - 20.0f);
-
-    // Garage door that slides upward as open ratio increases.
-    const float garageDoorLeftX = garageLeftX + 12.0f;       // Door left edge
-    const float garageDoorBottomY = garageBottomY + 10.0f;   // Door bottom when fully closed
-    const float garageDoorWidth = garageWidth - 24.0f;       // Door width
-    const float garageDoorHeight = garageHeight - 20.0f;     // Door total height
-    const float visibleDoorHeight = garageDoorHeight * (1.0f - garageDoorOpenRatio_house); // Remaining visible part
-
-    if (visibleDoorHeight > 1.0f) {
-        if (houseNightMode) {
-            glColor3f(0.40f, 0.42f, 0.47f);
-        } else {
-            glColor3f(0.76f, 0.76f, 0.80f);
-        }
-        drawRectangle(
-            garageDoorLeftX,
-            garageDoorBottomY + (garageDoorHeight - visibleDoorHeight),
-            garageDoorWidth,
-            visibleDoorHeight
-        );
-    }
-
-    // Main house door.
-    if (houseNightMode) {
-        glColor3f(0.34f, 0.24f, 0.16f);
-    } else {
-        glColor3f(0.48f, 0.31f, 0.18f);
-    }
-    drawRectangle(houseLeftX + 255.0f, houseBottomY, 54.0f, 98.0f);
-
-    // Door knob.
-    glColor3f(0.88f, 0.74f, 0.24f);
-    drawFilledCircle(houseLeftX + 298.0f, houseBottomY + 46.0f, 3.0f, 18);
-
-    // Windows.
-    if (houseNightMode) {
-        glColor3f(0.98f, 0.90f, 0.56f); // Warm light in night scene
-    } else {
-        glColor3f(0.60f, 0.82f, 0.94f); // Day blue glass
-    }
-
-    drawRectangle(houseLeftX + 160.0f, houseBottomY + 130.0f, 72.0f, 56.0f); // Upper left window
-    drawRectangle(houseLeftX + 280.0f, houseBottomY + 130.0f, 72.0f, 56.0f); // Upper right window
-    drawRectangle(houseLeftX + 160.0f, houseBottomY + 40.0f, 72.0f, 56.0f);  // Lower left window
-
-    // Window frames.
-    glColor3f(0.42f, 0.32f, 0.20f);
-    drawRectangle(houseLeftX + 194.0f, houseBottomY + 130.0f, 4.0f, 56.0f);
-    drawRectangle(houseLeftX + 314.0f, houseBottomY + 130.0f, 4.0f, 56.0f);
-    drawRectangle(houseLeftX + 194.0f, houseBottomY + 40.0f, 4.0f, 56.0f);
-
-    // Driveway connecting garage to road.
-    glColor3f(0.45f, 0.45f, 0.48f);
-    glBegin(GL_POLYGON);
-    glVertex2f(garageLeftX + 22.0f, garageBottomY); // Driveway top-left at garage
-    glVertex2f(garageLeftX + garageWidth - 22.0f, garageBottomY); // Driveway top-right at garage
-    glVertex2f(320.0f, 120.0f); // Driveway bottom-right near road
-    glVertex2f(150.0f, 120.0f); // Driveway bottom-left near road
+    glLineWidth(2.0f);
+    glBegin(GL_LINES);
+    // Lower middle window frame cross
+    glVertex2f(homeHouseLeftX + 234.0f, homeHouseBottomY + 68.0f);  glVertex2f(homeHouseLeftX + 234.0f, homeHouseBottomY + 132.0f);
+    glVertex2f(homeHouseLeftX + 190.0f, homeHouseBottomY + 100.0f); glVertex2f(homeHouseLeftX + 278.0f, homeHouseBottomY + 100.0f);
+    // Lower right window frame cross
+    glVertex2f(homeHouseLeftX + 362.0f, homeHouseBottomY + 68.0f);  glVertex2f(homeHouseLeftX + 362.0f, homeHouseBottomY + 132.0f);
+    glVertex2f(homeHouseLeftX + 318.0f, homeHouseBottomY + 100.0f); glVertex2f(homeHouseLeftX + 406.0f, homeHouseBottomY + 100.0f);
+    // Upper middle window frame cross
+    glVertex2f(homeHouseLeftX + 234.0f, homeHouseBottomY + 162.0f); glVertex2f(homeHouseLeftX + 234.0f, homeHouseBottomY + 226.0f);
+    glVertex2f(homeHouseLeftX + 190.0f, homeHouseBottomY + 194.0f); glVertex2f(homeHouseLeftX + 278.0f, homeHouseBottomY + 194.0f);
+    // Upper right window frame cross
+    glVertex2f(homeHouseLeftX + 362.0f, homeHouseBottomY + 162.0f); glVertex2f(homeHouseLeftX + 362.0f, homeHouseBottomY + 226.0f);
+    glVertex2f(homeHouseLeftX + 318.0f, homeHouseBottomY + 194.0f); glVertex2f(homeHouseLeftX + 406.0f, homeHouseBottomY + 194.0f);
     glEnd();
+    glLineWidth(1.0f);
 
-    // Front lawn.
+    // Garage attached to house right-lower side.
     if (houseNightMode) {
-        glColor3f(0.14f, 0.22f, 0.16f);
+        glColor3f(0.26f, 0.30f, 0.36f);
     } else {
-        glColor3f(0.26f, 0.56f, 0.28f);
+        glColor3f(0.82f, 0.78f, 0.66f);
     }
-    drawRectangle(0.0f, 0.0f, 520.0f, 120.0f);
+    drawRectangle(homeGarageLeftX, homeGarageBottomY, homeGarageWidth, homeGarageHeight);
+
+    // Garage roof cap.
+    if (houseNightMode) {
+        glColor3f(0.20f, 0.14f, 0.14f);
+    } else {
+        glColor3f(0.62f, 0.24f, 0.20f);
+    }
+    drawRectangle(homeGarageLeftX - 8.0f, homeGarageBottomY + homeGarageHeight - 6.0f, homeGarageWidth + 16.0f, 12.0f);
+
+    // Garage opening interior.
+    glColor3f(0.06f, 0.06f, 0.08f);
+    drawRectangle(homeGarageDoorLeftX, homeGarageDoorBottomY, homeGarageDoorWidth, homeGarageDoorHeight);
+
+    // Garage shutter door slides up using garageDoorOpenRatio_house.
+    const float visibleGarageDoorHeight = homeGarageDoorHeight * (1.0f - garageDoorOpenRatio_house);
+    if (visibleGarageDoorHeight > 1.0f) {
+        if (houseNightMode) {
+            glColor3f(0.46f, 0.48f, 0.54f);
+        } else {
+            glColor3f(0.80f, 0.80f, 0.84f);
+        }
+
+        const float slidingDoorY = homeGarageDoorBottomY + (homeGarageDoorHeight - visibleGarageDoorHeight);
+        drawRectangle(homeGarageDoorLeftX, slidingDoorY, homeGarageDoorWidth, visibleGarageDoorHeight);
+
+        // Horizontal shutter lines.
+        glColor3f(0.56f, 0.56f, 0.60f);
+        for (float shutterLineY = slidingDoorY + 14.0f;
+             shutterLineY < slidingDoorY + visibleGarageDoorHeight;
+             shutterLineY += 14.0f) {
+            drawRectangle(homeGarageDoorLeftX, shutterLineY, homeGarageDoorWidth, 2.0f);
+        }
+    }
 }
 
 // ==========================================================
@@ -1503,34 +1680,22 @@ void drawScene6Presentation() {
 // SCENE 1: MORNING HOME DEPARTURE
 // -----------------------------------------
 void drawScene1MorningHomeDeparture() {
-    // Morning sky.
-    drawVerticalSkyGradient(
-        0.62f, 0.84f, 0.97f, // Bottom sky color
-        0.83f, 0.94f, 0.99f  // Top sky color
-    );
+    // Scene 1 uses a dedicated morning sky.
+    drawMorningHomeSky();
 
-    drawSun(1020.0f + sunHorizontalOffset * 0.30f, 612.0f);
+    // Ground fix: dark road at bottom, grass above, clean driveway.
+    drawHomeGroundAndDriveway(false);
 
-    // Clouds in first three scenes.
-    drawCloud(220.0f + cloudOffsetX_layerA, 620.0f);
-    drawCloud(560.0f + cloudOffsetX_layerB, 648.0f);
-    drawCloud(940.0f + cloudOffsetX_layerA * 0.9f, 608.0f);
+    // Trees for yard depth.
+    drawTree(74.0f, 128.0f);  // Left tree base in lawn
+    drawTree(640.0f, 134.0f); // Mid-right tree base in lawn
+    drawTree(760.0f, 126.0f); // Right tree base in lawn
 
-    // Distant city in background.
-    drawParallaxCity(0.0f, false);
-
-    // Home road and lawn.
-    roadBottomY_current = 120.0f;
-    roadHeight_current = 130.0f;
-    roadLaneCount_current = 2;
-    roadNightMode_current = false;
-    drawRoad();
-
-    // Draw reusable house with animated garage door ratio.
+    // Draw improved house and garage.
     houseNightMode = false;
     drawHouse();
 
-    // Main car leaves home.
+    // Car departs home.
     drawCar(carPositionX_scene1, carPositionY_scene1, 0.84f, 0.20f, 0.18f,
             wheelRotationAngle_scene1, false, false, true);
 }
@@ -1539,34 +1704,25 @@ void drawScene1MorningHomeDeparture() {
 // SCENE 9: RETURN HOME
 // -----------------------------------------
 void drawScene9ReturnHome() {
-    // Night sky.
-    drawVerticalSkyGradient(
-        0.05f, 0.07f, 0.15f, // Bottom night color
-        0.10f, 0.14f, 0.25f  // Top night color
-    );
+    // Scene 9 uses dark sky with moon and stars.
+    drawNightHomeSky();
 
-    drawMoon(1030.0f, 620.0f);
-    drawStars();
+    // Ground fix at night mode.
+    drawHomeGroundAndDriveway(true);
 
-    // Optional slow clouds at night.
-    drawCloud(260.0f + cloudOffsetX_layerA * 0.4f, 600.0f);
-    drawCloud(720.0f + cloudOffsetX_layerB * 0.4f, 640.0f);
+    // Night trees silhouette.
+    drawTree(74.0f, 128.0f);  // Left tree base in lawn
+    drawTree(640.0f, 134.0f); // Mid-right tree base in lawn
+    drawTree(760.0f, 126.0f); // Right tree base in lawn
 
-    // Home road.
-    roadBottomY_current = 120.0f;
-    roadHeight_current = 130.0f;
-    roadLaneCount_current = 2;
-    roadNightMode_current = true;
-    drawRoad();
-
-    // Reuse same house model, but in night mode.
+    // House with warm windows at night.
     houseNightMode = true;
     garageDoorOpenRatio_house = garageDoorOpenRatio_scene9;
     drawHouse();
 
-    // Returning car parks inside garage with smooth stop.
+    // Returning car with headlights and taillights.
     drawCar(carPositionX_scene9, carPositionY_scene9, 0.84f, 0.20f, 0.18f,
-            wheelRotationAngle_scene9, true, false, false);
+            wheelRotationAngle_scene9, true, true, true);
 }
 
 // ==========================================================
@@ -1588,22 +1744,49 @@ void initializeSteamParticles() {
 }
 
 void updateScene1Animation() {
-    // Open garage first, then move car forward.
-    const int garageOpeningDurationFrames = 90;
-    if (sceneFrameCounter <= garageOpeningDurationFrames) {
-        garageDoorOpenRatio_house = clampFloat(
-            static_cast<float>(sceneFrameCounter) / static_cast<float>(garageOpeningDurationFrames),
-            0.0f,
-            1.0f
-        );
+    // Garage opens quickly at the beginning of departure scene.
+    const int garageOpeningDurationFrames_scene1 = 70;
+    garageDoorOpenRatio_house = clampFloat(
+        static_cast<float>(sceneFrameCounter) / static_cast<float>(garageOpeningDurationFrames_scene1),
+        0.0f,
+        1.0f
+    );
+
+    // Phase 0: car moves from garage driveway to road lane.
+    if (scene1DrivePhase == 0) {
+        const float drivewayMoveStepX = 1.1f; // X shift per frame toward road center
+        const float drivewayMoveStepY = 4.2f; // Y drop per frame from driveway to road
+
+        float movedDistance = 0.0f;
+
+        if (carPositionX_scene1 > scene1RoadEntryX) {
+            carPositionX_scene1 -= drivewayMoveStepX;
+            movedDistance += drivewayMoveStepX;
+        }
+        if (carPositionY_scene1 > scene1RoadTravelY) {
+            carPositionY_scene1 -= drivewayMoveStepY;
+            movedDistance += drivewayMoveStepY;
+        }
+
+        wheelRotationAngle_scene1 -= movedDistance * 3.8f;
+
+        if (carPositionX_scene1 <= scene1RoadEntryX && carPositionY_scene1 <= scene1RoadTravelY) {
+            carPositionX_scene1 = scene1RoadEntryX;
+            carPositionY_scene1 = scene1RoadTravelY;
+            scene1DrivePhase = 1;
+        }
     }
 
-    const int carMoveStartFrame = 55;
-    const float carSpeedPerFrame = 2.7f;
+    // Phase 1: car moves horizontally to the right and exits full screen.
+    if (scene1DrivePhase == 1) {
+        const float roadMoveStep_scene1 = 4.6f; // Horizontal road speed
+        carPositionX_scene1 += roadMoveStep_scene1;
+        wheelRotationAngle_scene1 -= roadMoveStep_scene1 * 3.8f;
 
-    if (sceneFrameCounter > carMoveStartFrame && carPositionX_scene1 < 700.0f) {
-        carPositionX_scene1 += carSpeedPerFrame;
-        wheelRotationAngle_scene1 -= carSpeedPerFrame * 4.2f;
+        // Scene transition is allowed only after this condition becomes true.
+        if (carPositionX_scene1 > WINDOW_WIDTH + 200.0f) {
+            scene1HasCarExitedScreen = true;
+        }
     }
 }
 
@@ -1784,26 +1967,57 @@ void updateScene8Animation() {
 }
 
 void updateScene9Animation() {
-    // Open garage while car approaches.
-    if (carPositionX_scene9 < 760.0f) {
-        garageDoorOpenRatio_scene9 = (760.0f - carPositionX_scene9) / 260.0f;
-        garageDoorOpenRatio_scene9 = clampFloat(garageDoorOpenRatio_scene9, 0.0f, 1.0f);
+    // Phase 0: car enters from left and moves horizontally right on road.
+    if (scene9DrivePhase == 0) {
+        const float roadSpeed_scene9 = carSpeed_scene9; // Road approach speed
+        carPositionX_scene9 += roadSpeed_scene9;
+        carPositionY_scene9 = scene9RoadTravelY;
+        wheelRotationAngle_scene9 -= roadSpeed_scene9 * 3.8f;
+
+        // Garage door starts opening when car is close to driveway.
+        if (carPositionX_scene9 > 180.0f) {
+            garageDoorOpenRatio_scene9 += 0.018f;
+            garageDoorOpenRatio_scene9 = clampFloat(garageDoorOpenRatio_scene9, 0.0f, 1.0f);
+        }
+
+        if (carPositionX_scene9 >= scene9DrivewayEntryX) {
+            carPositionX_scene9 = scene9DrivewayEntryX;
+            scene9DrivePhase = 1;
+        }
     }
 
-    // Smooth stop near garage parking position.
-    const float finalParkingX = 260.0f; // Final parked X inside garage
-    if (carPositionX_scene9 > finalParkingX) {
-        const float remainingDistance = carPositionX_scene9 - finalParkingX;
-        const float normalizedDistance = clampFloat(remainingDistance / 700.0f, 0.0f, 1.0f);
+    // Phase 1: car moves upward into garage (with slight rightward alignment).
+    if (scene9DrivePhase == 1) {
+        const float drivewayMoveStepX_scene9 = 0.90f; // X alignment toward garage center
+        const float drivewayMoveStepY_scene9 = 4.00f; // Y move into garage interior
 
-        // Speed decreases as remaining distance becomes smaller.
-        carSpeed_scene9 = 0.8f + 3.0f * normalizedDistance;
-        carPositionX_scene9 -= carSpeed_scene9;
-        wheelRotationAngle_scene9 -= carSpeed_scene9 * 4.0f;
+        float movedDistance = 0.0f;
 
-        if (carPositionX_scene9 < finalParkingX) {
-            carPositionX_scene9 = finalParkingX;
+        if (carPositionX_scene9 < scene9GarageParkingX) {
+            carPositionX_scene9 += drivewayMoveStepX_scene9;
+            movedDistance += drivewayMoveStepX_scene9;
         }
+        if (carPositionY_scene9 < scene9GarageParkingY) {
+            carPositionY_scene9 += drivewayMoveStepY_scene9;
+            movedDistance += drivewayMoveStepY_scene9;
+        }
+
+        wheelRotationAngle_scene9 -= movedDistance * 3.6f;
+
+        garageDoorOpenRatio_scene9 += 0.010f;
+        garageDoorOpenRatio_scene9 = clampFloat(garageDoorOpenRatio_scene9, 0.0f, 1.0f);
+
+        if (carPositionX_scene9 >= scene9GarageParkingX && carPositionY_scene9 >= scene9GarageParkingY) {
+            carPositionX_scene9 = scene9GarageParkingX;
+            carPositionY_scene9 = scene9GarageParkingY;
+            scene9DrivePhase = 2;
+            scene9ParkingCompleted = true;
+        }
+    }
+
+    // Phase 2: parked state (stable final pose in garage).
+    if (scene9DrivePhase == 2) {
+        scene9ParkedFrameCounter += 1;
     }
 }
 
@@ -1814,10 +2028,12 @@ void updateScene9Animation() {
 void resetVariablesForScene(int sceneIndex) {
     // Reset variables each time scene changes, to keep behavior deterministic.
     if (sceneIndex == 1) {
-        carPositionX_scene1 = 220.0f;
-        carPositionY_scene1 = 178.0f;
+        carPositionX_scene1 = scene1DrivewayStartX;
+        carPositionY_scene1 = scene1DrivewayStartY;
         wheelRotationAngle_scene1 = 0.0f;
         garageDoorOpenRatio_house = 0.0f;
+        scene1DrivePhase = 0;
+        scene1HasCarExitedScreen = false;
     }
 
     if (sceneIndex == 2) {
@@ -1881,11 +2097,14 @@ void resetVariablesForScene(int sceneIndex) {
     }
 
     if (sceneIndex == 9) {
-        carPositionX_scene9 = 1450.0f;
-        carPositionY_scene9 = 178.0f;
+        carPositionX_scene9 = -220.0f;
+        carPositionY_scene9 = scene9RoadTravelY;
         wheelRotationAngle_scene9 = 0.0f;
-        carSpeed_scene9 = 3.8f;
+        carSpeed_scene9 = 4.0f;
         garageDoorOpenRatio_scene9 = 0.0f;
+        scene9DrivePhase = 0;
+        scene9ParkedFrameCounter = 0;
+        scene9ParkingCompleted = false;
     }
 }
 
@@ -2018,7 +2237,19 @@ void update(int value) {
     // Trigger transition near scene end.
     if (!isSceneTransitionActive) {
         const int fadeTriggerFrame = sceneDurationFrameCount[currentScene] - FADE_START_BEFORE_END_FRAMES;
-        if (sceneFrameCounter >= fadeTriggerFrame) {
+        bool sceneSpecificTransitionReady = true;
+
+        // Scene 1 rule: transition only after car fully exits right side.
+        if (currentScene == 1) {
+            sceneSpecificTransitionReady = scene1HasCarExitedScreen;
+        }
+
+        // Scene 9 rule: transition only after car is parked in garage.
+        if (currentScene == 9) {
+            sceneSpecificTransitionReady = scene9ParkingCompleted && (scene9ParkedFrameCounter > 45);
+        }
+
+        if (sceneFrameCounter >= fadeTriggerFrame && sceneSpecificTransitionReady) {
             isSceneTransitionActive = true;
             isFadeOutPhase = true;
         }
