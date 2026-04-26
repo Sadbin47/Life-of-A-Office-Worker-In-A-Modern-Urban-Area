@@ -1,4 +1,11 @@
-/* Life of An Office Worker In A Modern Urban Area */
+/*
+ * Life-of-A-Office-Worker-In-A-Modern-Urban-Area
+ *
+ * 8th semester university project
+ * - Single file (main.cpp)
+ * - Pure 2D (gluOrtho2D)
+ * - GLUT fixed pipeline (no shaders, no textures, no 3D)
+ */
 
 #ifdef __APPLE__
 #include <GLUT/glut.h>
@@ -7,1256 +14,2083 @@
 #endif
 
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
-#include <vector>
-#include <algorithm>
-#include <utility>
 
-static int gWindowWidth  = 1280;
-static int gWindowHeight = 720;
+// ==========================================================
+// ====== GLOBAL WINDOW, TIMING, AND SCENE CONSTANTS ========
+// ==========================================================
 
-static int  currentScene       = 1;
-static double gLastTimeSec     = 0.0;
-static bool gFollowCamera      = true;
+const int WINDOW_WIDTH  = 1280; // Required project width
+const int WINDOW_HEIGHT = 720;  // Required project height
 
-static float gSmoothCamX       = 0.0f;
-static float gSmoothCamY       = 2.8f;
-static float gSmoothCamZ       = 13.6f;
-static bool  gCameraInitialized = false;
+const float ORTHO_LEFT_X   = 0.0f;             // Left border of 2D world
+const float ORTHO_RIGHT_X  = 1280.0f;          // Right border of 2D world
+const float ORTHO_BOTTOM_Y = 0.0f;             // Bottom border of 2D world
+const float ORTHO_TOP_Y    = 720.0f;           // Top border of 2D world
+const float TARGET_ASPECT  = 16.0f / 9.0f;     // Required aspect ratio
 
-static float degToRad(float degree) {
-    return degree * 3.14159265f / 180.0f;
-}
+const int TIMER_INTERVAL_MS = 16;              // ~60 FPS timer interval
+const int FIRST_SCENE_INDEX = 1;               // Scene index starts from 1
+const int LAST_SCENE_INDEX  = 9;               // Total 9 scenes
 
-static void normalize3(float& x, float& y, float& z) {
-    const float len = std::sqrt(x*x + y*y + z*z);
-    if (len > 0.00001f) { x /= len; y /= len; z /= len; }
-}
+const float PI_VALUE = 3.14159265358979323846f; // Constant PI for circle math
 
-static void setPerspective(float fovYDeg, float aspect, float zNear, float zFar) {
-    const float ymax = zNear * std::tan(degToRad(fovYDeg * 0.5f));
-    const float xmax = ymax * aspect;
-    glFrustum(-xmax, xmax, -ymax, ymax, zNear, zFar);
-}
+// Each scene lasts approximately 5-8 seconds at ~60 FPS.
+const int sceneDurationFrameCount[10] = {
+    0,   // Index 0 is unused
+    420, // Scene 1  ~7.0 sec
+    390, // Scene 2  ~6.5 sec
+    360, // Scene 3  ~6.0 sec
+    420, // Scene 4  ~7.0 sec
+    390, // Scene 5  ~6.5 sec
+    360, // Scene 6  ~6.0 sec
+    360, // Scene 7  ~6.0 sec
+    420, // Scene 8  ~7.0 sec
+    430  // Scene 9  ~7.1 sec
+};
 
-static void setLookAt(float eyeX, float eyeY, float eyeZ,
-                      float centerX, float centerY, float centerZ,
-                      float upX, float upY, float upZ) {
-    float fx = centerX - eyeX, fy = centerY - eyeY, fz = centerZ - eyeZ;
-    normalize3(fx, fy, fz);
-    float sx = fy*upZ - fz*upY, sy = fz*upX - fx*upZ, sz = fx*upY - fy*upX;
-    normalize3(sx, sy, sz);
-    float ux = sy*fz - sz*fy, uy = sz*fx - sx*fz, uz = sx*fy - sy*fx;
-    GLfloat m[16] = {
-        sx, ux, -fx, 0.0f,
-        sy, uy, -fy, 0.0f,
-        sz, uz, -fz, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-    };
-    glMultMatrixf(m);
-    glTranslatef(-eyeX, -eyeY, -eyeZ);
-}
+const int FADE_START_BEFORE_END_FRAMES = 55; // Start fade before scene end
+const float FADE_ALPHA_STEP = 0.03f;         // Alpha increase/decrease per frame
 
-static float clamp01(float v) {
-    return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
-}
+// ==========================================================
+// ====== GLOBAL ENGINE STATE (SCENE MACHINE + FADE) ========
+// ==========================================================
 
-static float wrapRange(float value, float minValue, float maxValue) {
-    const float span = maxValue - minValue;
-    if (span <= 0.0f) return minValue;
-    while (value < minValue) value += span;
-    while (value > maxValue) value -= span;
+int currentScene = 1;         // Scene state machine variable (1 to 9)
+int sceneFrameCounter = 0;    // Counts frames spent in current scene
+
+bool isSceneTransitionActive = false; // True while fade transition is running
+bool isFadeOutPhase = false;          // True = alpha rising, False = alpha falling
+float fadeOverlayAlpha = 0.0f;        // Current fade quad alpha (0.0 to 1.0)
+
+bool showTextOverlay = true; // Set true to draw scene title and frame counter
+
+// ==========================================================
+// ====== GLOBAL ENVIRONMENT ANIMATION VARIABLES ============
+// ==========================================================
+
+float cloudOffsetX_layerA = 0.0f;    // Cloud layer A horizontal movement
+float cloudOffsetX_layerB = 0.0f;    // Cloud layer B horizontal movement
+float sunHorizontalOffset = 0.0f;    // Small horizontal drift for sun animation
+float starTwinkleCounter = 0.0f;     // Shared phase for star twinkling
+
+// Star positions for night scenes (8 and 9).
+const int STAR_COUNT = 34;
+const float starPositionX[STAR_COUNT] = {
+     40.0f,  90.0f, 145.0f, 210.0f, 275.0f, 330.0f, 390.0f, 455.0f, 520.0f,
+    585.0f, 650.0f, 715.0f, 770.0f, 830.0f, 885.0f, 950.0f,1010.0f,1070.0f,
+   1130.0f,1190.0f,1245.0f,  65.0f, 180.0f, 305.0f, 420.0f, 560.0f, 690.0f,
+    815.0f, 940.0f,1065.0f,1185.0f, 250.0f, 745.0f, 980.0f
+};
+const float starPositionY[STAR_COUNT] = {
+    640.0f, 680.0f, 620.0f, 700.0f, 655.0f, 610.0f, 685.0f, 640.0f, 705.0f,
+    625.0f, 690.0f, 650.0f, 710.0f, 635.0f, 675.0f, 618.0f, 698.0f, 645.0f,
+    708.0f, 630.0f, 695.0f, 605.0f, 665.0f, 618.0f, 700.0f, 646.0f, 710.0f,
+    622.0f, 690.0f, 640.0f, 705.0f, 680.0f, 635.0f, 670.0f
+};
+
+// ==========================================================
+// ====== ROAD / CITY DRAW CONFIG (SET PER SCENE) ===========
+// ==========================================================
+
+float roadBottomY_current = 120.0f; // Current road lower edge Y
+float roadHeight_current = 180.0f;  // Current road total height
+int roadLaneCount_current = 3;      // Current lane count
+bool roadNightMode_current = false; // Color mode for road
+
+bool buildingWindowNightMode = false; // If true, windows are warm/yellow lights
+
+// ==========================================================
+// ====== HOME / HOUSE SHARED STATE (SCENE 1 and 9) =========
+// ==========================================================
+
+float garageDoorOpenRatio_house = 0.0f; // 0 = closed, 1 = fully open
+bool houseNightMode = false;            // Day/night color switch
+
+// ==========================================================
+// ====== CHARACTER SHARED POSE STATE =======================
+// ==========================================================
+
+float characterLeftArmAngleDegrees = 0.0f;  // Rotation for left arm segment
+float characterRightArmAngleDegrees = 0.0f; // Rotation for right arm segment
+float characterLegSwingAngleDegrees = 0.0f; // Opposite swing for left/right legs
+
+bool characterFacingRight = true;    // True = face right, False = face left
+bool characterCarryBriefcase = false; // Draw briefcase near right hand
+bool characterSittingPose = false;    // Sit pose used in office desk scene
+bool characterPointingPose = false;   // Right arm points toward board
+
+// ==========================================================
+// ====== SCENE-SPECIFIC ANIMATION VARIABLES =================
+// ==========================================================
+
+// Scene 1: Morning home departure.
+float carPositionX_scene1 = 220.0f;
+float carPositionY_scene1 = 178.0f;
+float wheelRotationAngle_scene1 = 0.0f;
+
+// Scene 2: Morning traffic.
+float trafficCarPositionX_scene2_A = -180.0f;
+float trafficCarPositionX_scene2_B = 1350.0f;
+float trafficCarPositionX_scene2_C = -420.0f;
+
+float trafficCarWheelAngle_scene2_A = 0.0f;
+float trafficCarWheelAngle_scene2_B = 0.0f;
+float trafficCarWheelAngle_scene2_C = 0.0f;
+
+float parallaxOffset_scene2 = 0.0f; // Buildings move slower than cars
+
+// Scene 3: Office arrival.
+float carPositionX_scene3 = -220.0f;
+float carPositionY_scene3 = 286.0f;
+float wheelRotationAngle_scene3 = 0.0f;
+float barrierRotationAngle_scene3 = 0.0f; // 0 = closed horizontal, ~85 = open
+
+// Scene 4: Main office.
+float typingArmAngle_scene4 = 0.0f;
+float fanRotationAngle_scene4 = 0.0f;
+float wallClockHandAngle_scene4 = 90.0f;
+float workerPositionX_scene4_A = 800.0f;
+float workerPositionX_scene4_B = 980.0f;
+float workerDirection_scene4_A = 1.0f;
+float workerDirection_scene4_B = -1.0f;
+
+// Scene 5: Coffee break.
+float workerWalkPositionX_scene5 = 250.0f;
+float workerWalkLegSwing_scene5 = 0.0f;
+
+struct SteamParticle {
+    float particleX;      // Particle center X
+    float particleY;      // Particle center Y
+    float verticalSpeed;  // Upward speed per frame
+    float alphaValue;     // Current transparency
+};
+
+const int STEAM_PARTICLE_COUNT = 16;
+SteamParticle coffeeSteamParticles[STEAM_PARTICLE_COUNT];
+
+// Scene 6: Presentation.
+float presentationBarGrowRatio_scene6 = 0.0f; // 0 -> 1 grows bars gradually
+float pointerOscillationAngle_scene6 = 0.0f;  // Small pointer motion
+
+// Scene 7: Leaving office.
+float carPositionX_scene7 = 520.0f;
+float carPositionY_scene7 = 170.0f;
+float wheelRotationAngle_scene7 = 0.0f;
+float barrierRotationAngle_scene7 = 0.0f;
+
+// Scene 8: Evening traffic.
+float trafficCarPositionX_scene8_A = -260.0f;
+float trafficCarPositionX_scene8_B = 1380.0f;
+float trafficCarPositionX_scene8_C = -560.0f;
+
+float trafficCarWheelAngle_scene8_A = 0.0f;
+float trafficCarWheelAngle_scene8_B = 0.0f;
+float trafficCarWheelAngle_scene8_C = 0.0f;
+
+float parallaxOffset_scene8 = 0.0f;
+
+// Scene 9: Return home at night.
+float carPositionX_scene9 = 1450.0f;
+float carPositionY_scene9 = 178.0f;
+float wheelRotationAngle_scene9 = 0.0f;
+float carSpeed_scene9 = 3.8f;
+float garageDoorOpenRatio_scene9 = 0.0f;
+
+// ==========================================================
+// ====== FORWARD DECLARATIONS ===============================
+// ==========================================================
+
+float clampFloat(float value, float minValue, float maxValue);
+float wrapOffsetToRange(float value, float minValue, float maxValue);
+
+void drawRectangle(float x, float y, float width, float height);
+void drawFilledCircle(float centerX, float centerY, float radius, int segmentCount);
+void drawFilledEllipse(float centerX, float centerY, float radiusX, float radiusY, int segmentCount);
+void drawVerticalSkyGradient(float bottomRed, float bottomGreen, float bottomBlue,
+                             float topRed, float topGreen, float topBlue);
+
+void drawWheel(float wheelCenterX, float wheelCenterY, float wheelRotationAngle);
+void drawCar(float carPositionX, float carPositionY, float bodyRed, float bodyGreen, float bodyBlue,
+             float wheelRotationAngle = 0.0f,
+             bool headlightsEnabled = false,
+             bool taillightsEnabled = false,
+             bool faceRight = true);
+
+void drawHouse();
+void drawBuilding(float buildingPositionX, float buildingBottomY, float buildingWidth, float buildingHeight);
+void drawRoad();
+void drawCharacter(float characterPositionX, float characterPositionY);
+void drawFan(float fanCenterX, float fanCenterY);
+void drawCloud(float cloudCenterX, float cloudCenterY);
+void drawStars();
+void drawTextIfNeeded();
+
+void drawBitmapText(float textPositionX, float textPositionY, const char* textString);
+void drawSun(float sunCenterX, float sunCenterY);
+void drawMoon(float moonCenterX, float moonCenterY);
+void drawParallaxCity(float baseParallaxOffset, bool nightMode);
+void drawStreetLight(float poleBaseX, float poleBaseY, bool glowEnabled);
+void drawOfficeComplex(bool eveningLightingEnabled);
+void drawOfficeRampDown();
+void drawOfficeRampUp();
+void drawParkingBarrier(float pivotX, float pivotY, float rotationAngleDegrees);
+void drawWallClock(float centerX, float centerY, float handAngleDegrees);
+void drawOfficeDeskSetup(float deskLeftX, float deskBottomY);
+void drawCoffeeMachine(float machineLeftX, float machineBottomY);
+void drawSteamParticles();
+void drawPresentationBoard(float boardLeftX, float boardBottomY, float boardWidth, float boardHeight);
+
+void drawScene1MorningHomeDeparture();
+void drawScene2MorningTraffic();
+void drawScene3OfficeArrival();
+void drawScene4MainOffice();
+void drawScene5CoffeeBreak();
+void drawScene6Presentation();
+void drawScene7LeavingOffice();
+void drawScene8EveningTraffic();
+void drawScene9ReturnHome();
+
+void initializeSteamParticles();
+void resetVariablesForScene(int sceneIndex);
+void moveToNextScene();
+
+void updateScene1Animation();
+void updateScene2Animation();
+void updateScene3Animation();
+void updateScene4Animation();
+void updateScene5Animation();
+void updateScene6Animation();
+void updateScene7Animation();
+void updateScene8Animation();
+void updateScene9Animation();
+
+void reshape(int newWidth, int newHeight);
+void display();
+void update(int value);
+void keyboard(unsigned char key, int x, int y);
+
+// ==========================================================
+// ====== UTILITY FUNCTIONS ==================================
+// ==========================================================
+
+float clampFloat(float value, float minValue, float maxValue) {
+    if (value < minValue) {
+        return minValue;
+    }
+    if (value > maxValue) {
+        return maxValue;
+    }
     return value;
 }
 
-static void drawDDALine(float x0, float y0, float x1, float y1, float z) {
-    const int steps = std::max(1, (int)std::max(std::fabs(x1 - x0), std::fabs(y1 - y0)));
-    const float dx = (x1 - x0) / (float)steps;
-    const float dy = (y1 - y0) / (float)steps;
+float wrapOffsetToRange(float value, float minValue, float maxValue) {
+    const float span = maxValue - minValue;
+    if (span <= 0.0f) {
+        return minValue;
+    }
 
-    float x = x0, y = y0;
-    glBegin(GL_POINTS);
-    for (int i = 0; i <= steps; ++i) {
-        glVertex3f(x, y, z);
-        x += dx;
-        y += dy;
+    while (value < minValue) {
+        value += span;
+    }
+    while (value > maxValue) {
+        value -= span;
+    }
+    return value;
+}
+
+// ==========================================================
+// ====== BASIC 2D DRAWING PRIMITIVES =======================
+// ==========================================================
+
+void drawRectangle(float x, float y, float width, float height) {
+    glBegin(GL_QUADS);
+    glVertex2f(x,         y);          // Bottom-left corner
+    glVertex2f(x + width, y);          // Bottom-right corner
+    glVertex2f(x + width, y + height); // Top-right corner
+    glVertex2f(x,         y + height); // Top-left corner
+    glEnd();
+}
+
+void drawFilledCircle(float centerX, float centerY, float radius, int segmentCount) {
+    if (segmentCount < 12) {
+        segmentCount = 12;
+    }
+
+    glBegin(GL_POLYGON);
+    for (int segmentIndex = 0; segmentIndex < segmentCount; ++segmentIndex) {
+        const float angleRadians = (2.0f * PI_VALUE * static_cast<float>(segmentIndex)) / static_cast<float>(segmentCount);
+        const float vertexX = centerX + std::cos(angleRadians) * radius;
+        const float vertexY = centerY + std::sin(angleRadians) * radius;
+        glVertex2f(vertexX, vertexY);
     }
     glEnd();
 }
 
-static void drawBresenhamLineGrid(int x0, int y0, int x1, int y1,
-                                  float originX, float originY, float scale, float z) {
-    int dx = std::abs(x1 - x0);
-    int sx = (x0 < x1) ? 1 : -1;
-    int dy = -std::abs(y1 - y0);
-    int sy = (y0 < y1) ? 1 : -1;
-    int err = dx + dy;
+void drawFilledEllipse(float centerX, float centerY, float radiusX, float radiusY, int segmentCount) {
+    if (segmentCount < 12) {
+        segmentCount = 12;
+    }
 
-    glBegin(GL_POINTS);
-    for (;;) {
-        glVertex3f(originX + x0 * scale, originY + y0 * scale, z);
-        if (x0 == x1 && y0 == y1) break;
-        int e2 = 2 * err;
-        if (e2 >= dy) { err += dy; x0 += sx; }
-        if (e2 <= dx) { err += dx; y0 += sy; }
+    glBegin(GL_POLYGON);
+    for (int segmentIndex = 0; segmentIndex < segmentCount; ++segmentIndex) {
+        const float angleRadians = (2.0f * PI_VALUE * static_cast<float>(segmentIndex)) / static_cast<float>(segmentCount);
+        const float vertexX = centerX + std::cos(angleRadians) * radiusX;
+        const float vertexY = centerY + std::sin(angleRadians) * radiusY;
+        glVertex2f(vertexX, vertexY);
     }
     glEnd();
 }
 
-static void drawBresenhamCircleGrid(int cx, int cy, int radius,
-                                    float originX, float originY, float scale, float z) {
-    int x = 0;
-    int y = radius;
-    int d = 3 - (2 * radius);
+void drawVerticalSkyGradient(float bottomRed, float bottomGreen, float bottomBlue,
+                             float topRed, float topGreen, float topBlue) {
+    const float skyLeftX = ORTHO_LEFT_X;    // Gradient starts at left border
+    const float skyRightX = ORTHO_RIGHT_X;  // Gradient ends at right border
+    const float skyBottomY = ORTHO_BOTTOM_Y; // Gradient bottom at world bottom
+    const float skyTopY = ORTHO_TOP_Y;      // Gradient top at world top
 
-    glBegin(GL_POINTS);
-    while (y >= x) {
-        glVertex3f(originX + (cx + x) * scale, originY + (cy + y) * scale, z);
-        glVertex3f(originX + (cx - x) * scale, originY + (cy + y) * scale, z);
-        glVertex3f(originX + (cx + x) * scale, originY + (cy - y) * scale, z);
-        glVertex3f(originX + (cx - x) * scale, originY + (cy - y) * scale, z);
-        glVertex3f(originX + (cx + y) * scale, originY + (cy + x) * scale, z);
-        glVertex3f(originX + (cx - y) * scale, originY + (cy + x) * scale, z);
-        glVertex3f(originX + (cx + y) * scale, originY + (cy - x) * scale, z);
-        glVertex3f(originX + (cx - y) * scale, originY + (cy - x) * scale, z);
+    glBegin(GL_QUADS);
+    glColor3f(bottomRed, bottomGreen, bottomBlue);
+    glVertex2f(skyLeftX,  skyBottomY); // Bottom-left gradient point
+    glVertex2f(skyRightX, skyBottomY); // Bottom-right gradient point
 
-        ++x;
-        if (d > 0) {
-            --y;
-            d = d + 4 * (x - y) + 10;
-        } else {
-            d = d + 4 * x + 6;
-        }
-    }
+    glColor3f(topRed, topGreen, topBlue);
+    glVertex2f(skyRightX, skyTopY);    // Top-right gradient point
+    glVertex2f(skyLeftX,  skyTopY);    // Top-left gradient point
     glEnd();
 }
 
-static void drawFilledCircleBresenhamGrid(int cx, int cy, int radius,
-                                          float originX, float originY, float scale, float z) {
-    int x = 0;
-    int y = radius;
-    int d = 3 - (2 * radius);
+// ==========================================================
+// ====== REQUIRED REUSABLE DRAW HELPERS ====================
+// ==========================================================
 
-    while (y >= x) {
-        drawDDALine(originX + (cx - x) * scale, originY + (cy + y) * scale,
-                    originX + (cx + x) * scale, originY + (cy + y) * scale, z);
-        drawDDALine(originX + (cx - x) * scale, originY + (cy - y) * scale,
-                    originX + (cx + x) * scale, originY + (cy - y) * scale, z);
-        drawDDALine(originX + (cx - y) * scale, originY + (cy + x) * scale,
-                    originX + (cx + y) * scale, originY + (cy + x) * scale, z);
-        drawDDALine(originX + (cx - y) * scale, originY + (cy - x) * scale,
-                    originX + (cx + y) * scale, originY + (cy - x) * scale, z);
+void drawWheel(float wheelCenterX, float wheelCenterY, float wheelRotationAngle) {
+    const float tireOuterRadius = 16.0f; // Outer black tire radius
+    const float rimRadius = 8.0f;        // Inner metallic rim radius
 
-        ++x;
-        if (d > 0) {
-            --y;
-            d = d + 4 * (x - y) + 10;
-        } else {
-            d = d + 4 * x + 6;
-        }
-    }
-}
+    glPushMatrix();
+    glTranslatef(wheelCenterX, wheelCenterY, 0.0f);
+    glRotatef(wheelRotationAngle, 0.0f, 0.0f, 1.0f);
 
-static void drawFilledCircleFan(float cx, float cy, float radius, float z, int segments = 36) {
-    if (segments < 12) segments = 12;
-    glBegin(GL_TRIANGLE_FAN);
-    glVertex3f(cx, cy, z);
-    for (int i = 0; i <= segments; ++i) {
-        const float t = (2.0f * 3.14159265f * i) / (float)segments;
-        glVertex3f(cx + radius * std::cos(t), cy + radius * std::sin(t), z);
-    }
+    glColor3f(0.07f, 0.07f, 0.07f);
+    drawFilledCircle(0.0f, 0.0f, tireOuterRadius, 32);
+
+    glColor3f(0.65f, 0.65f, 0.68f);
+    drawFilledCircle(0.0f, 0.0f, rimRadius, 28);
+
+    glColor3f(0.90f, 0.90f, 0.92f);
+    glLineWidth(2.0f);
+    glBegin(GL_LINES);
+    glVertex2f(-rimRadius, 0.0f); glVertex2f(rimRadius, 0.0f);   // Horizontal spoke
+    glVertex2f(0.0f, -rimRadius); glVertex2f(0.0f, rimRadius);   // Vertical spoke
+    glVertex2f(-5.5f, -5.5f);     glVertex2f(5.5f, 5.5f);        // Diagonal spoke 1
+    glVertex2f(-5.5f, 5.5f);      glVertex2f(5.5f, -5.5f);       // Diagonal spoke 2
     glEnd();
-}
+    glLineWidth(1.0f);
 
-static void setMaterial(const GLfloat ambient[4], const GLfloat diffuse[4],
-                        const GLfloat specular[4], GLfloat shininess) {
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT,   ambient);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,   diffuse);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  specular);
-    glMaterialf (GL_FRONT_AND_BACK, GL_SHININESS, shininess);
-}
-
-static void drawScaledCube(float sx, float sy, float sz) {
-    glPushMatrix();
-    glScalef(sx, sy, sz);
-    glutSolidCube(1.0);
     glPopMatrix();
 }
 
-// ============================================================================
-//  Car
-// ============================================================================
-class Car {
-public:
-    enum Direction { FORWARD, RIGHT };
+void drawCar(float carPositionX, float carPositionY, float bodyRed, float bodyGreen, float bodyBlue,
+             float wheelRotationAngle,
+             bool headlightsEnabled,
+             bool taillightsEnabled,
+             bool faceRight) {
+    const float carBodyWidth = 140.0f;      // Main body width
+    const float carBodyHeight = 30.0f;      // Main body height
+    const float wheelOffsetX = 42.0f;       // Horizontal distance from center to each wheel
+    const float wheelCenterY = -2.0f;       // Wheel center Y relative to car origin
 
-    Car() : m_x(-2.6f), m_y(-0.72f), m_z(-1.30f),
-            m_speed(0.0f), m_wheelRotationDeg(0.0f),
-            m_headingDeg(90.0f), m_direction(FORWARD) {}
-
-    void resetInGarage() {
-        m_x = -2.6f; m_y = -0.72f; m_z = -1.30f;
-        m_speed = 0.0f; m_wheelRotationDeg = 0.0f;
-        m_headingDeg = 90.0f; m_direction = FORWARD;
-    }
-    void setSpeed(float s)       { m_speed = s; }
-    void setDirection(Direction d){ m_direction = d; }
-    void setHeading(float h)     { m_headingDeg = h; }
-
-    void update(float dt) {
-        const float dist = m_speed * dt;
-        if (m_direction == FORWARD) m_z += dist;
-        else                        m_x += dist;
-        const float circ = 2.0f * 3.14159265f * 0.23f;
-        if (circ > 0.0f) m_wheelRotationDeg -= (dist / circ) * 360.0f;
-    }
-
-    void render() const {
-        const GLfloat mA[] = {0.16f,0.08f,0.08f,1.0f};
-        const GLfloat mD[] = {0.75f,0.15f,0.16f,1.0f};
-        const GLfloat mS[] = {0.78f,0.78f,0.82f,1.0f};
-        setMaterial(mA,mD,mS,96.0f);
-
-        glPushMatrix();
-        glTranslatef(m_x, m_y, m_z);
-        glRotatef(m_headingDeg, 0,1,0);
-
-        glPushMatrix(); glTranslatef(0,0.23f,0); drawScaledCube(3.20f,0.50f,1.46f); glPopMatrix();
-        glPushMatrix(); glTranslatef(-0.18f,0.60f,0); drawScaledCube(1.62f,0.34f,1.25f); glPopMatrix();
-        glPushMatrix(); glTranslatef(1.42f,0.20f,0); glRotatef(18,0,0,1); drawScaledCube(0.70f,0.24f,1.26f); glPopMatrix();
-        glPushMatrix(); glTranslatef(-1.45f,0.24f,0); glRotatef(-11,0,0,1); drawScaledCube(0.62f,0.24f,1.24f); glPopMatrix();
-
-        const GLfloat gA[]={0.08f,0.11f,0.16f,1}; const GLfloat gD[]={0.28f,0.42f,0.66f,1}; const GLfloat gS[]={0.90f,0.90f,0.95f,1};
-        setMaterial(gA,gD,gS,110.0f);
-        glPushMatrix(); glTranslatef(-0.18f,0.64f,0); drawScaledCube(1.42f,0.20f,1.12f); glPopMatrix();
-
-        const GLfloat tA[]={0.06f,0.06f,0.06f,1}; const GLfloat tD[]={0.20f,0.20f,0.20f,1}; const GLfloat tS[]={0.45f,0.45f,0.45f,1};
-        setMaterial(tA,tD,tS,52.0f);
-        glPushMatrix(); glTranslatef(1.60f,0.08f,0); drawScaledCube(0.12f,0.34f,1.18f); glPopMatrix();
-        glPushMatrix(); glTranslatef(-1.62f,0.10f,0); drawScaledCube(0.10f,0.28f,1.10f); glPopMatrix();
-
-        const GLfloat lA[]={0.35f,0.35f,0.30f,1}; const GLfloat lD[]={0.90f,0.90f,0.70f,1}; const GLfloat lS[]={0.95f,0.95f,0.80f,1};
-        setMaterial(lA,lD,lS,120.0f);
-        glPushMatrix(); glTranslatef(1.78f,0.10f,0.48f); drawScaledCube(0.04f,0.14f,0.20f); glPopMatrix();
-        glPushMatrix(); glTranslatef(1.78f,0.10f,-0.48f); drawScaledCube(0.04f,0.14f,0.20f); glPopMatrix();
-
-        const GLfloat rA[]={0.22f,0.03f,0.03f,1}; const GLfloat rD[]={0.74f,0.08f,0.08f,1}; const GLfloat rS[]={0.50f,0.18f,0.18f,1};
-        setMaterial(rA,rD,rS,72.0f);
-        glPushMatrix(); glTranslatef(-1.80f,0.10f,0.46f); drawScaledCube(0.03f,0.13f,0.18f); glPopMatrix();
-        glPushMatrix(); glTranslatef(-1.80f,0.10f,-0.46f); drawScaledCube(0.03f,0.13f,0.18f); glPopMatrix();
-
-        drawWheel(-1.12f,-0.11f, 0.68f);
-        drawWheel( 1.15f,-0.11f, 0.68f);
-        drawWheel(-1.12f,-0.11f,-0.68f);
-        drawWheel( 1.15f,-0.11f,-0.68f);
-
-        glPopMatrix();
-    }
-
-    float getZ() const { return m_z; }
-    float getX() const { return m_x; }
-
-private:
-    void drawWheel(float x, float y, float z) const {
-        const GLfloat tA[]={0.05f,0.05f,0.05f,1}; const GLfloat tD[]={0.12f,0.12f,0.12f,1}; const GLfloat tS[]={0.24f,0.24f,0.24f,1};
-        setMaterial(tA,tD,tS,45.0f);
-        glPushMatrix();
-        glTranslatef(x,y,z);
-        glRotatef(m_wheelRotationDeg,0,0,1);
-        glutSolidTorus(0.07,0.23,18,24);
-        const GLfloat rA[]={0.35f,0.35f,0.35f,1}; const GLfloat rD[]={0.72f,0.72f,0.74f,1}; const GLfloat rS[]={0.92f,0.92f,0.95f,1};
-        setMaterial(rA,rD,rS,120.0f);
-        glPushMatrix(); glTranslatef(0,0,0.04f); drawScaledCube(0.25f,0.25f,0.08f); glPopMatrix();
-        const GLfloat sA[]={0.30f,0.30f,0.30f,1}; const GLfloat sD[]={0.60f,0.60f,0.62f,1}; const GLfloat sS[]={0.86f,0.86f,0.88f,1};
-        setMaterial(sA,sD,sS,70.0f);
-        for (int i = 0; i < 4; ++i) {
-            glPushMatrix();
-            glRotatef(i*45.0f,0,0,1);
-            glTranslatef(0.07f,0,0.04f);
-            drawScaledCube(0.12f,0.02f,0.03f);
-            glPopMatrix();
-        }
-        glPopMatrix();
-    }
-
-    float m_x, m_y, m_z, m_speed, m_wheelRotationDeg, m_headingDeg;
-    Direction m_direction;
-};
-
-// ============================================================================
-//  Human  --  realistic 25-year-old formal-dressed office worker
-//
-//  Coordinate convention:
-//    Local origin is BETWEEN THE FEET at ground level.
-//    setPosition(x, groundY, z) places the shoe soles ON groundY.
-//    Character faces +Z by default; use setFacing() to yaw.
-//    Total height ≈ 1.80 units.
-//
-//  Bresenham midpoint circle algorithm (integer form, 8-way symmetry) is
-//  used for: 2 jacket buttons, iris of each eye, pupil of each eye, watch
-//  face -- all rendered as GL_TRIANGLE_FAN discs.
-// ============================================================================
-class Human {
-public:
-    Human();
-
-    // Pose
-    void setPosition(float x, float y, float z);
-    void setFacing(float angleDeg);        // yaw around Y-axis
-    void setVisible(bool v);
-
-    // Animation
-    void setWalkSwing(float degrees);      // ± degrees about X-axis
-    void setWalkPhase(float phase01);      // drives swing via sine
-
-    // Gestures / accessories
-    void setArmRaise(float degrees);       // raise right arm forward
-    void setBriefcaseVisible(bool show);
-
-    // Render
-    void render() const;
-
-    float getX() const { return m_x; }
-    float getY() const { return m_y; }
-    float getZ() const { return m_z; }
-    float getHeight() const { return 1.80f; }
-
-private:
-    // ---- Bresenham midpoint circle ----
-    // d0 = 1-r, if d<0: d+=2x+3, else: d+=2(x-y)+5, y--; 8-way symmetry.
-    static std::vector<std::pair<float,float> >
-        computeBresenhamCircle(float radius, int qSteps);
-    static void drawBresenhamDisc(float radius, int qSteps);
-
-    // ---- Internal helpers ----
-    static void applyMat(const GLfloat a[4], const GLfloat d[4],
-                         const GLfloat s[4], GLfloat sh);
-    static void box(float sx, float sy, float sz);
-
-    // ---- Body-part renderers ----
-    void renderLegsAndFeet()    const;
-    void renderTorsoJacket()    const;
-    void renderCollarAndLapels()const;
-    void renderTie()            const;
-    void renderJacketButtons()  const;   // Bresenham
-    void renderLeftArm()        const;
-    void renderRightArm()       const;   // Bresenham (watch face)
-    void renderNeck()           const;
-    void renderHead()           const;
-    void renderHair()           const;
-    void renderFacialFeatures() const;   // Bresenham (iris, pupil)
-
-    float m_x, m_y, m_z;
-    float m_facingDeg;
-    float m_walkSwingDeg;
-    float m_armRaiseDeg;
-    bool  m_visible;
-    bool  m_showBriefcase;
-};
-
-// ---- Constructor ----
-Human::Human()
-    : m_x(0.0f), m_y(0.0f), m_z(0.0f),
-      m_facingDeg(0.0f), m_walkSwingDeg(0.0f), m_armRaiseDeg(0.0f),
-      m_visible(true), m_showBriefcase(false) {}
-
-void Human::setPosition(float x, float y, float z) { m_x=x; m_y=y; m_z=z; }
-void Human::setFacing(float d)           { m_facingDeg    = d; }
-void Human::setVisible(bool v)           { m_visible      = v; }
-void Human::setWalkSwing(float d)        { m_walkSwingDeg = d; }
-void Human::setArmRaise(float d)         { m_armRaiseDeg  = d; }
-void Human::setBriefcaseVisible(bool b)  { m_showBriefcase= b; }
-
-void Human::setWalkPhase(float p) {
-    const float TAU = 6.28318530718f;
-    float ph = p - std::floor(p);
-    m_walkSwingDeg = 26.0f * std::sin(TAU * ph);
-}
-
-void Human::applyMat(const GLfloat a[4], const GLfloat d[4],
-                     const GLfloat s[4], GLfloat sh) {
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT,   a);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,   d);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  s);
-    glMaterialf (GL_FRONT_AND_BACK, GL_SHININESS, sh);
-}
-
-void Human::box(float sx, float sy, float sz) {
     glPushMatrix();
-    glScalef(sx, sy, sz);
-    glutSolidCube(1.0);
-    glPopMatrix();
-}
+    glTranslatef(carPositionX, carPositionY, 0.0f);
 
-// ---------------------------------------------------------------------------
-//  Bresenham midpoint circle -- integer form, 8-way symmetry
-// ---------------------------------------------------------------------------
-std::vector<std::pair<float,float> >
-Human::computeBresenhamCircle(float radius, int qSteps) {
-    int r    = (qSteps < 2) ? 2 : qSteps;
-    float unit = radius / static_cast<float>(r);
-
-    std::vector<std::pair<int,int> > raw;
-    int x = 0, y = r;
-    int d = 1 - r;          // decision parameter d0
-
-    while (x <= y) {
-        raw.push_back(std::make_pair( x,  y));
-        raw.push_back(std::make_pair( y,  x));
-        raw.push_back(std::make_pair( y, -x));
-        raw.push_back(std::make_pair( x, -y));
-        raw.push_back(std::make_pair(-x, -y));
-        raw.push_back(std::make_pair(-y, -x));
-        raw.push_back(std::make_pair(-y,  x));
-        raw.push_back(std::make_pair(-x,  y));
-
-        if (d < 0) {
-            d += 2*x + 3;
-        } else {
-            d += 2*(x - y) + 5;
-            --y;
-        }
-        ++x;
+    if (!faceRight) {
+        glScalef(-1.0f, 1.0f, 1.0f); // Mirror car to face left
     }
 
-    std::vector<std::pair<float,float> > pts;
-    pts.reserve(raw.size());
-    for (size_t i = 0; i < raw.size(); ++i)
-        pts.push_back(std::make_pair(raw[i].first * unit, raw[i].second * unit));
+    // Simple shadow under car for better depth feeling.
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.28f);
+    drawFilledEllipse(0.0f, -10.0f, 72.0f, 11.0f, 36);
 
-    std::sort(pts.begin(), pts.end(),
-        [](const std::pair<float,float>& a, const std::pair<float,float>& b){
-            return std::atan2(a.second, a.first) < std::atan2(b.second, b.first);
-        });
+    // Car lower body.
+    glColor3f(bodyRed, bodyGreen, bodyBlue);
+    drawRectangle(-carBodyWidth * 0.5f, 0.0f, carBodyWidth, carBodyHeight);
 
-    pts.erase(std::unique(pts.begin(), pts.end(),
-        [](const std::pair<float,float>& a, const std::pair<float,float>& b){
-            return std::fabs(a.first -b.first)<1e-5f && std::fabs(a.second-b.second)<1e-5f;
-        }), pts.end());
-
-    return pts;
-}
-
-void Human::drawBresenhamDisc(float radius, int qSteps) {
-    std::vector<std::pair<float,float> > pts = computeBresenhamCircle(radius, qSteps);
-    if (pts.size() < 3) return;
-    glBegin(GL_TRIANGLE_FAN);
-    glNormal3f(0,0,1);
-    glVertex3f(0,0,0);
-    for (size_t i = 0; i < pts.size(); ++i)
-        glVertex3f(pts[i].first, pts[i].second, 0.0f);
-    glVertex3f(pts.front().first, pts.front().second, 0.0f);
+    // Car upper roof section.
+    glBegin(GL_POLYGON);
+    glVertex2f(-36.0f, 30.0f); // Rear roof lower point
+    glVertex2f( 40.0f, 30.0f); // Front roof lower point
+    glVertex2f( 20.0f, 56.0f); // Front roof upper point
+    glVertex2f(-18.0f, 56.0f); // Rear roof upper point
     glEnd();
-}
 
-// ---------------------------------------------------------------------------
-//  render()
-// ---------------------------------------------------------------------------
-void Human::render() const {
-    if (!m_visible) return;
-
-    glPushMatrix();
-    glTranslatef(m_x, m_y, m_z);
-    glRotatef(m_facingDeg, 0,1,0);
-
-    renderLegsAndFeet();
-    renderTorsoJacket();
-    renderCollarAndLapels();
-    renderTie();
-    renderJacketButtons();
-    renderLeftArm();
-    renderRightArm();
-    renderNeck();
-    renderHead();
-    renderHair();
-    renderFacialFeatures();
-
-    glPopMatrix();
-}
-
-// ---------------------------------------------------------------------------
-//  Legs -- navy dress trousers, dark socks, polished oxford shoes
-// ---------------------------------------------------------------------------
-void Human::renderLegsAndFeet() const {
-    const GLfloat pA[]={0.030f,0.030f,0.060f,1}; const GLfloat pD[]={0.110f,0.120f,0.190f,1}; const GLfloat pS[]={0.080f,0.080f,0.100f,1};
-    const GLfloat cA[]={0.020f,0.020f,0.040f,1}; const GLfloat cD[]={0.055f,0.065f,0.120f,1}; const GLfloat cS[]={0.030f,0.030f,0.040f,1};
-    const GLfloat kA[]={0.04f,0.04f,0.05f,1};    const GLfloat kD[]={0.10f,0.10f,0.13f,1};    const GLfloat kS[]={0.03f,0.03f,0.04f,1};
-    const GLfloat sA[]={0.020f,0.020f,0.020f,1}; const GLfloat sD[]={0.060f,0.050f,0.050f,1}; const GLfloat sS[]={0.620f,0.590f,0.560f,1};
-
-    const float hipY = 0.96f;
-
-    for (int i = 0; i < 2; ++i) {
-        const int   side  = (i == 0) ? -1 : +1;
-        const float swing = (side > 0) ? m_walkSwingDeg : -m_walkSwingDeg;
-
-        glPushMatrix();
-        glTranslatef(side * 0.095f, hipY, 0);
-        glRotatef(swing, 1,0,0);
-
-        // Thigh
-        applyMat(pA,pD,pS, 10.0f);
-        glPushMatrix(); glTranslatef(0,-0.24f,0); box(0.17f,0.48f,0.17f); glPopMatrix();
-
-        // Calf (slight taper)
-        glPushMatrix(); glTranslatef(0,-0.71f,0); box(0.15f,0.46f,0.15f); glPopMatrix();
-
-        // Front crease line
-        applyMat(cA,cD,cS, 4.0f);
-        glPushMatrix(); glTranslatef(0,-0.48f,0.086f); box(0.005f,0.92f,0.004f); glPopMatrix();
-
-        // Dark sock
-        applyMat(kA,kD,kS, 6.0f);
-        glPushMatrix(); glTranslatef(0,-0.95f,0); box(0.145f,0.06f,0.145f); glPopMatrix();
-
-        // Oxford shoe body
-        applyMat(sA,sD,sS, 90.0f);
-        glPushMatrix(); glTranslatef(0,-0.985f,0.035f); box(0.155f,0.055f,0.24f); glPopMatrix();
-
-        // Rounded toe cap
-        glPushMatrix();
-        glTranslatef(0,-0.985f,0.16f);
-        glScalef(1.0f,0.65f,1.35f);
-        glutSolidSphere(0.077,14,14);
-        glPopMatrix();
-
-        // Heel block
-        glPushMatrix(); glTranslatef(0,-0.993f,-0.075f); box(0.13f,0.04f,0.08f); glPopMatrix();
-
-        glPopMatrix();
-    }
-}
-
-// ---------------------------------------------------------------------------
-//  Torso -- navy wool suit jacket, shoulder pads, hem, back seam
-// ---------------------------------------------------------------------------
-void Human::renderTorsoJacket() const {
-    const GLfloat jA[]={0.035f,0.035f,0.070f,1}; const GLfloat jD[]={0.115f,0.130f,0.200f,1}; const GLfloat jS[]={0.080f,0.080f,0.100f,1};
-    applyMat(jA,jD,jS, 14.0f);
-
-    // Chest
-    glPushMatrix(); glTranslatef(0,1.37f,0); box(0.46f,0.26f,0.28f); glPopMatrix();
-    // Waist (tapered)
-    glPushMatrix(); glTranslatef(0,1.08f,0); box(0.42f,0.32f,0.26f); glPopMatrix();
-    // Shoulder pads
-    glPushMatrix(); glTranslatef(-0.22f,1.51f,0); box(0.12f,0.08f,0.26f); glPopMatrix();
-    glPushMatrix(); glTranslatef( 0.22f,1.51f,0); box(0.12f,0.08f,0.26f); glPopMatrix();
-    // Hem
-    glPushMatrix(); glTranslatef(0,0.92f,0); box(0.44f,0.06f,0.27f); glPopMatrix();
-
-    // Back seam (slightly darker)
-    const GLfloat sA[]={0.020f,0.020f,0.050f,1}; const GLfloat sD[]={0.075f,0.085f,0.150f,1}; const GLfloat sS[]={0.060f,0.060f,0.080f,1};
-    applyMat(sA,sD,sS, 8.0f);
-    glPushMatrix(); glTranslatef(0,0.98f,-0.141f); box(0.010f,0.14f,0.003f); glPopMatrix();
-}
-
-// ---------------------------------------------------------------------------
-//  Collar -- white shirt patch, collar points, navy lapels
-// ---------------------------------------------------------------------------
-void Human::renderCollarAndLapels() const {
-    const GLfloat shA[]={0.46f,0.46f,0.46f,1}; const GLfloat shD[]={0.95f,0.95f,0.93f,1}; const GLfloat shS[]={0.32f,0.32f,0.32f,1};
-    const GLfloat lA[] ={0.025f,0.025f,0.055f,1}; const GLfloat lD[]={0.090f,0.105f,0.170f,1}; const GLfloat lS[]={0.120f,0.120f,0.150f,1};
-
-    // White shirt between lapels
-    applyMat(shA,shD,shS, 18.0f);
-    glPushMatrix(); glTranslatef(0,1.50f,0.142f); box(0.15f,0.10f,0.012f); glPopMatrix();
-
-    // Shirt collar band
-    glPushMatrix(); glTranslatef(0,1.575f,0.04f); box(0.17f,0.05f,0.20f); glPopMatrix();
-
-    // Collar points
-    glPushMatrix(); glTranslatef(-0.062f,1.545f,0.138f); glRotatef(-18,0,0,1); box(0.045f,0.090f,0.018f); glPopMatrix();
-    glPushMatrix(); glTranslatef( 0.062f,1.545f,0.138f); glRotatef( 18,0,0,1); box(0.045f,0.090f,0.018f); glPopMatrix();
-
-    // Lapels
-    applyMat(lA,lD,lS, 22.0f);
-    glPushMatrix(); glTranslatef(-0.11f,1.37f,0.141f); glRotatef(-9,0,0,1); box(0.11f,0.34f,0.016f); glPopMatrix();
-    glPushMatrix(); glTranslatef( 0.11f,1.37f,0.141f); glRotatef( 9,0,0,1); box(0.11f,0.34f,0.016f); glPopMatrix();
-}
-
-// ---------------------------------------------------------------------------
-//  Red silk tie (knot + body + wider tip)
-// ---------------------------------------------------------------------------
-void Human::renderTie() const {
-    const GLfloat tA[]={0.22f,0.03f,0.04f,1}; const GLfloat tD[]={0.72f,0.11f,0.13f,1}; const GLfloat tS[]={0.50f,0.28f,0.28f,1};
-    applyMat(tA,tD,tS, 55.0f);
-    glPushMatrix(); glTranslatef(0,1.475f,0.152f); box(0.075f,0.065f,0.028f); glPopMatrix();  // knot
-    glPushMatrix(); glTranslatef(0,1.27f, 0.154f); box(0.070f,0.360f,0.018f); glPopMatrix();  // body
-    glPushMatrix(); glTranslatef(0,1.075f,0.155f); box(0.085f,0.060f,0.019f); glPopMatrix();  // tip
-}
-
-// ---------------------------------------------------------------------------
-//  Jacket buttons -- Bresenham midpoint circle (GL_TRIANGLE_FAN disc)
-// ---------------------------------------------------------------------------
-void Human::renderJacketButtons() const {
-    const GLfloat bA[]={0.06f,0.06f,0.06f,1}; const GLfloat bD[]={0.22f,0.22f,0.24f,1}; const GLfloat bS[]={0.60f,0.60f,0.62f,1};
-    applyMat(bA,bD,bS, 80.0f);
-    glPushMatrix(); glTranslatef(0.135f,1.16f,0.143f); drawBresenhamDisc(0.019f,7); glPopMatrix();
-    glPushMatrix(); glTranslatef(0.135f,1.00f,0.143f); drawBresenhamDisc(0.019f,7); glPopMatrix();
-}
-
-// ---------------------------------------------------------------------------
-//  Left arm -- jacket sleeve, shirt cuff, hand
-// ---------------------------------------------------------------------------
-void Human::renderLeftArm() const {
-    const GLfloat jA[]={0.035f,0.035f,0.070f,1}; const GLfloat jD[]={0.115f,0.130f,0.200f,1}; const GLfloat jS[]={0.080f,0.080f,0.100f,1};
-    const GLfloat cA[]={0.46f,0.46f,0.46f,1};    const GLfloat cD[]={0.95f,0.95f,0.93f,1};    const GLfloat cS[]={0.30f,0.30f,0.30f,1};
-    const GLfloat sA[]={0.22f,0.15f,0.11f,1};    const GLfloat sD[]={0.78f,0.60f,0.45f,1};    const GLfloat sS[]={0.14f,0.12f,0.10f,1};
-
-    glPushMatrix();
-    glTranslatef(-0.27f,1.50f,0);
-    glRotatef(m_walkSwingDeg, 1,0,0);  // opposite phase to right leg
-
-    applyMat(jA,jD,jS, 14.0f);
-    glPushMatrix(); glTranslatef(0,-0.18f,0); box(0.130f,0.36f,0.14f); glPopMatrix();
-    glPushMatrix(); glTranslatef(0,-0.52f,0); box(0.120f,0.30f,0.13f); glPopMatrix();
-
-    applyMat(cA,cD,cS, 18.0f);
-    glPushMatrix(); glTranslatef(0,-0.685f,0); box(0.124f,0.04f,0.132f); glPopMatrix();
-
-    applyMat(sA,sD,sS, 16.0f);
-    glPushMatrix();
-    glTranslatef(0,-0.76f,0);
-    glScalef(0.9f,1.5f,0.65f);
-    glutSolidSphere(0.070,16,16);
-    glPopMatrix();
-
-    glPopMatrix();
-}
-
-// ---------------------------------------------------------------------------
-//  Right arm -- + wristwatch face (Bresenham), + optional briefcase
-// ---------------------------------------------------------------------------
-void Human::renderRightArm() const {
-    const GLfloat jA[]={0.035f,0.035f,0.070f,1}; const GLfloat jD[]={0.115f,0.130f,0.200f,1}; const GLfloat jS[]={0.080f,0.080f,0.100f,1};
-    const GLfloat cA[]={0.46f,0.46f,0.46f,1};    const GLfloat cD[]={0.95f,0.95f,0.93f,1};    const GLfloat cS[]={0.30f,0.30f,0.30f,1};
-    const GLfloat sA[]={0.22f,0.15f,0.11f,1};    const GLfloat sD[]={0.78f,0.60f,0.45f,1};    const GLfloat sS[]={0.14f,0.12f,0.10f,1};
-
-    glPushMatrix();
-    glTranslatef(0.27f,1.50f,0);
-    if (std::fabs(m_armRaiseDeg) > 0.1f)
-        glRotatef(-m_armRaiseDeg, 1,0,0);
-    else
-        glRotatef(-m_walkSwingDeg, 1,0,0);
-
-    applyMat(jA,jD,jS, 14.0f);
-    glPushMatrix(); glTranslatef(0,-0.18f,0); box(0.130f,0.36f,0.14f); glPopMatrix();
-    glPushMatrix(); glTranslatef(0,-0.52f,0); box(0.120f,0.30f,0.13f); glPopMatrix();
-
-    applyMat(cA,cD,cS, 18.0f);
-    glPushMatrix(); glTranslatef(0,-0.685f,0); box(0.124f,0.04f,0.132f); glPopMatrix();
-
-    // Watch strap
-    const GLfloat wA[]={0.05f,0.04f,0.03f,1}; const GLfloat wD[]={0.18f,0.13f,0.08f,1}; const GLfloat wS[]={0.10f,0.10f,0.10f,1};
-    applyMat(wA,wD,wS, 20.0f);
-    glPushMatrix(); glTranslatef(0,-0.71f,0.071f); box(0.110f,0.055f,0.008f); glPopMatrix();
-
-    // Watch face -- Bresenham midpoint circle, polished metal
-    const GLfloat fA[]={0.27f,0.27f,0.29f,1}; const GLfloat fD[]={0.82f,0.82f,0.86f,1}; const GLfloat fS[]={0.96f,0.96f,0.98f,1};
-    applyMat(fA,fD,fS, 120.0f);
-    glPushMatrix(); glTranslatef(0,-0.71f,0.079f); drawBresenhamDisc(0.028f,8); glPopMatrix();
-
-    // Hand
-    applyMat(sA,sD,sS, 16.0f);
-    glPushMatrix();
-    glTranslatef(0,-0.76f,0);
-    glScalef(0.9f,1.5f,0.65f);
-    glutSolidSphere(0.070,16,16);
-    glPopMatrix();
-
-    // Optional briefcase (follows arm)
-    if (m_showBriefcase) {
-        const GLfloat bA[]={0.09f,0.06f,0.04f,1}; const GLfloat bD[]={0.26f,0.17f,0.09f,1}; const GLfloat bS[]={0.12f,0.10f,0.08f,1};
-        applyMat(bA,bD,bS, 20.0f);
-        glPushMatrix(); glTranslatef(0,-0.98f,0); box(0.110f,0.22f,0.32f); glPopMatrix();
-        const GLfloat mA[]={0.30f,0.30f,0.32f,1}; const GLfloat mD[]={0.72f,0.72f,0.74f,1}; const GLfloat mS[]={0.92f,0.92f,0.95f,1};
-        applyMat(mA,mD,mS, 100.0f);
-        glPushMatrix(); glTranslatef(0,-0.855f,0); box(0.018f,0.06f,0.10f); glPopMatrix();
-        glPushMatrix(); glTranslatef( 0.058f,-0.935f,0.165f); box(0.024f,0.022f,0.008f); glPopMatrix();
-        glPushMatrix(); glTranslatef(-0.058f,-0.935f,0.165f); box(0.024f,0.022f,0.008f); glPopMatrix();
-    }
-
-    glPopMatrix();
-}
-
-// ---------------------------------------------------------------------------
-//  Neck
-// ---------------------------------------------------------------------------
-void Human::renderNeck() const {
-    const GLfloat sA[]={0.22f,0.15f,0.11f,1}; const GLfloat sD[]={0.78f,0.60f,0.45f,1}; const GLfloat sS[]={0.14f,0.12f,0.10f,1};
-    applyMat(sA,sD,sS, 14.0f);
-    glPushMatrix(); glTranslatef(0,1.605f,0); box(0.095f,0.08f,0.095f); glPopMatrix();
-}
-
-// ---------------------------------------------------------------------------
-//  Head -- cranium, jaw, ears
-// ---------------------------------------------------------------------------
-void Human::renderHead() const {
-    const GLfloat sA[]={0.22f,0.15f,0.11f,1}; const GLfloat sD[]={0.78f,0.60f,0.45f,1}; const GLfloat sS[]={0.14f,0.12f,0.10f,1};
-    applyMat(sA,sD,sS, 14.0f);
-
-    // Cranium (elongated sphere for realistic oval head)
-    glPushMatrix(); glTranslatef(0,1.75f,0); glScalef(1.0f,1.12f,1.02f); glutSolidSphere(0.105,28,28); glPopMatrix();
-    // Jaw / chin
-    glPushMatrix(); glTranslatef(0,1.684f,0.050f); glScalef(1.2f,0.8f,0.9f); glutSolidSphere(0.055,16,16); glPopMatrix();
-    // Ears
-    for (int i=-1; i<=1; i+=2) {
-        glPushMatrix(); glTranslatef(i*0.102f,1.752f,-0.005f); glScalef(0.45f,1.0f,0.8f); glutSolidSphere(0.035,12,12); glPopMatrix();
-    }
-}
-
-// ---------------------------------------------------------------------------
-//  Hair -- short dark professional cut
-// ---------------------------------------------------------------------------
-void Human::renderHair() const {
-    const GLfloat hA[]={0.04f,0.03f,0.02f,1}; const GLfloat hD[]={0.09f,0.07f,0.05f,1}; const GLfloat hS[]={0.24f,0.20f,0.18f,1};
-    applyMat(hA,hD,hS, 40.0f);
-    // Main cap
-    glPushMatrix(); glTranslatef(0,1.81f,-0.012f); glScalef(1.02f,0.75f,1.07f); glutSolidSphere(0.108,24,24); glPopMatrix();
-    // Side temples
-    for (int i=-1; i<=1; i+=2) {
-        glPushMatrix(); glTranslatef(i*0.084f,1.775f,0.020f); glScalef(0.45f,0.65f,0.95f); glutSolidSphere(0.052,14,14); glPopMatrix();
-    }
-    // Front fringe
-    glPushMatrix(); glTranslatef(-0.028f,1.832f,0.075f); box(0.080f,0.018f,0.040f); glPopMatrix();
-    glPushMatrix(); glTranslatef( 0.035f,1.828f,0.078f); glRotatef(-10,0,0,1); box(0.035f,0.025f,0.035f); glPopMatrix();
-}
-
-// ---------------------------------------------------------------------------
-//  Facial features -- eyes (Bresenham iris + pupil), brows, nose, mouth
-// ---------------------------------------------------------------------------
-void Human::renderFacialFeatures() const {
-    const float eyeY = 1.775f, eyeZ = 0.088f, eyeDX = 0.035f;
-
-    // Eye whites
-    const GLfloat wA[]={0.42f,0.42f,0.43f,1}; const GLfloat wD[]={0.93f,0.93f,0.90f,1}; const GLfloat wS[]={0.35f,0.35f,0.35f,1};
-    applyMat(wA,wD,wS, 22.0f);
-    for (int i=-1; i<=1; i+=2) {
-        glPushMatrix(); glTranslatef(i*eyeDX,eyeY,eyeZ); glScalef(1.25f,0.75f,0.6f); glutSolidSphere(0.018,16,16); glPopMatrix();
-    }
-
-    // Iris -- Bresenham disc, dark brown
-    const GLfloat iA[]={0.04f,0.025f,0.015f,1}; const GLfloat iD[]={0.13f,0.09f,0.05f,1}; const GLfloat iS[]={0.45f,0.40f,0.35f,1};
-    applyMat(iA,iD,iS, 90.0f);
-    for (int i=-1; i<=1; i+=2) {
-        glPushMatrix(); glTranslatef(i*eyeDX,eyeY,eyeZ+0.010f); drawBresenhamDisc(0.011f,5); glPopMatrix();
-    }
-
-    // Pupil -- smaller Bresenham disc, near black
-    const GLfloat pA[]={0.005f,0.005f,0.005f,1}; const GLfloat pD[]={0.020f,0.020f,0.020f,1}; const GLfloat pS[]={0.300f,0.300f,0.300f,1};
-    applyMat(pA,pD,pS, 120.0f);
-    for (int i=-1; i<=1; i+=2) {
-        glPushMatrix(); glTranslatef(i*eyeDX,eyeY,eyeZ+0.012f); drawBresenhamDisc(0.005f,4); glPopMatrix();
-    }
-
-    // Eyebrows (arched)
-    const GLfloat bA[]={0.03f,0.02f,0.01f,1}; const GLfloat bD[]={0.08f,0.06f,0.04f,1}; const GLfloat bS[]={0.05f,0.05f,0.05f,1};
-    applyMat(bA,bD,bS, 12.0f);
-    for (int i=-1; i<=1; i+=2) {
-        glPushMatrix(); glTranslatef(i*0.036f,1.808f,0.093f); glRotatef(i*5.0f,0,0,1); box(0.044f,0.010f,0.012f); glPopMatrix();
-    }
-
-    // Nose
-    const GLfloat sA[]={0.22f,0.15f,0.11f,1}; const GLfloat sD[]={0.78f,0.60f,0.45f,1}; const GLfloat sS[]={0.14f,0.12f,0.10f,1};
-    applyMat(sA,sD,sS, 14.0f);
-    glPushMatrix(); glTranslatef(0,1.748f,0.098f); box(0.018f,0.050f,0.028f); glPopMatrix();  // bridge
-    glPushMatrix(); glTranslatef(0,1.722f,0.110f); glutSolidSphere(0.018,14,14); glPopMatrix(); // tip
-    applyMat(bA,bD,bS, 6.0f);
-    for (int i=-1; i<=1; i+=2) {
-        glPushMatrix(); glTranslatef(i*0.009f,1.712f,0.114f); glutSolidSphere(0.0035,8,8); glPopMatrix();
-    }
-
-    // Lips
-    const GLfloat lA[]={0.20f,0.09f,0.08f,1}; const GLfloat lD[]={0.55f,0.22f,0.20f,1}; const GLfloat lS[]={0.15f,0.10f,0.10f,1};
-    applyMat(lA,lD,lS, 20.0f);
-    glPushMatrix(); glTranslatef(0,1.685f,0.098f); box(0.044f,0.008f,0.012f); glPopMatrix();
-}
-
-// ============================================================================
-//  HomeEnvironment
-// ============================================================================
-
-// Ground level for the human (shoe soles):
-//   grass top  ≈ -1.13,  driveway top ≈ -1.105,  road top ≈ -1.10
-// Using -1.10 works well for all walk/driveway/enter-car phases.
-static const float kHumanGroundY = -1.10f;
-
-class HomeEnvironment {
-public:
-    HomeEnvironment() :
-        m_sunTimeSec(0.0f),
-        m_cloudOffsetA(0.0f),
-        m_cloudOffsetB(0.0f),
-        m_cloudOffsetC(0.0f),
-        m_cloudOffsetD(0.0f),
-        m_garageOpen(0.0f),
-        m_phase(Phase_Walk),
-        m_phaseTime(0.0f),
-        m_morningSequenceDone(false) {}
-
-    void resetMorningSequence() {
-        m_car.resetInGarage();
-        // New Human: set position, visibility and zero the swing
-        m_human.setPosition(2.4f, kHumanGroundY, 1.25f);
-        m_human.setFacing(-90.0f);        // faces -X (toward garage)
-        m_human.setVisible(true);
-        m_human.setWalkSwing(0.0f);
-        m_human.setBriefcaseVisible(true);
-        m_sunTimeSec      = 0.0f;
-        m_cloudOffsetA    = 0.0f;
-        m_cloudOffsetB    = 0.0f;
-        m_cloudOffsetC    = 0.0f;
-        m_cloudOffsetD    = 0.0f;
-        m_garageOpen      = 0.0f;
-        m_phase           = Phase_Walk;
-        m_phaseTime       = 0.0f;
-        m_morningSequenceDone = false;
-    }
-
-    void update(float dt) {
-        m_sunTimeSec += dt;
-
-        m_cloudOffsetA = wrapRange(m_cloudOffsetA + dt * 0.38f, -26.0f, 26.0f);
-        m_cloudOffsetB = wrapRange(m_cloudOffsetB + dt * 0.52f, -26.0f, 26.0f);
-        m_cloudOffsetC = wrapRange(m_cloudOffsetC + dt * 0.44f, -26.0f, 26.0f);
-        m_cloudOffsetD = wrapRange(m_cloudOffsetD + dt * 0.60f, -26.0f, 26.0f);
-
-        if (currentScene != 1 || m_morningSequenceDone) return;
-
-        m_phaseTime += dt;
-
-        if (m_phase == Phase_Walk) {
-            const float walkDur = 4.0f;
-            const float t   = clamp01(m_phaseTime / walkDur);
-            const float startX = 2.4f,  startZ = 1.25f;
-            const float endX   = -2.6f, endZ   = 1.10f;
-            const float zLin   = startZ + (endZ - startZ) * t;
-            const float arc    = 0.38f * std::sin(3.14159265f * t);
-            m_human.setPosition(startX + (endX - startX)*t, kHumanGroundY, zLin + arc);
-            m_human.setFacing(-90.0f);
-            m_human.setWalkSwing(26.0f * std::sin(2.0f * 3.14159265f * t));
-            if (m_phaseTime >= walkDur) { m_phase = Phase_OpenGarage; m_phaseTime = 0.0f; }
-        }
-        else if (m_phase == Phase_OpenGarage) {
-            const float openDur = 2.2f;
-            m_garageOpen = clamp01(m_phaseTime / openDur);
-            m_human.setWalkSwing(0.0f);
-            if (m_phaseTime >= openDur) { m_phase = Phase_EnterCar; m_phaseTime = 0.0f; }
-        }
-        else if (m_phase == Phase_EnterCar) {
-            const float enterDur = 1.7f;
-            const float t = clamp01(m_phaseTime / enterDur);
-            const float startX = -2.6f, startZ = 1.10f;
-            const float endX   = -3.25f, endZ  = -1.10f;
-            m_human.setPosition(startX + (endX-startX)*t, kHumanGroundY, startZ + (endZ-startZ)*t);
-            m_human.setFacing(-90.0f);
-            m_human.setWalkSwing(10.0f * std::sin(2.0f * 3.14159265f * t));
-            if (m_phaseTime > 1.2f) m_human.setVisible(false);
-            if (m_phaseTime >= enterDur) {
-                m_phase = Phase_DriveForward; m_phaseTime = 0.0f;
-                m_car.setDirection(Car::FORWARD);
-                m_car.setHeading(90.0f);
-                m_car.setSpeed(2.0f);
-            }
-        }
-        else if (m_phase == Phase_DriveForward) {
-            m_human.setWalkSwing(0.0f);
-            m_car.update(dt);
-            if (m_car.getZ() >= 4.0f) {
-                m_phase = Phase_TurnRight; m_phaseTime = 0.0f;
-                m_car.setDirection(Car::RIGHT);
-                m_car.setSpeed(1.45f);
-            }
-        }
-        else if (m_phase == Phase_TurnRight) {
-            const float turnDur = 1.1f;
-            const float turnT   = clamp01(m_phaseTime / turnDur);
-            m_car.setHeading(90.0f * (1.0f - turnT));
-            m_car.update(dt);
-            if (m_phaseTime >= turnDur) {
-                m_phase = Phase_DriveOnRoad; m_phaseTime = 0.0f;
-                m_car.setHeading(0.0f);
-                m_car.setSpeed(2.8f);
-            }
-        }
-        else if (m_phase == Phase_DriveOnRoad) {
-            m_car.update(dt);
-            if (m_car.getX() >= 14.0f) {
-                m_car.setSpeed(0.0f);
-                m_phase = Phase_Done; m_phaseTime = 0.0f;
-            }
-        }
-        else if (m_phase == Phase_Done) {
-            m_morningSequenceDone = true;
-        }
-    }
-
-    float getCarX() const { return m_car.getX(); }
-    float getCarZ() const { return m_car.getZ(); }
-
-    void renderScene() const {
-        drawSkyMorning8AM();
-        drawForegroundGrass();
-        drawRearGrass();
-        drawRoad();
-        drawDriveway();
-        drawHouseBody();
-        drawGarage();
-        drawTreeAndBushes();
-        drawFence();
-        if (currentScene == 1) {
-            m_human.render();
-            m_car.render();
-        }
-    }
-
-private:
-    enum SequencePhase {
-        Phase_Walk, Phase_OpenGarage, Phase_EnterCar,
-        Phase_DriveForward, Phase_TurnRight, Phase_DriveOnRoad, Phase_Done
-    };
-
-    void drawSkyMorning8AM() const {
-        glDisable(GL_LIGHTING);
-        glPointSize(1.5f);
-
-        const float sunCycleSec = 34.0f;
-        const float sunT = std::fmod(m_sunTimeSec, sunCycleSec) / sunCycleSec;
-        const float sunX = -0.4f + 6.0f * sunT;
-        const float sunY = 6.0f + 0.9f * std::sin(3.14159265f * sunT);
-
-        // Sun gradient: low-yellow outer area + bright yellow center
-        glColor3f(0.98f,0.83f,0.26f);
-        drawFilledCircleFan(sunX, sunY, 0.82f, -24.0f, 80);
-        glColor3f(1.00f,0.95f,0.22f);
-        drawFilledCircleFan(sunX, sunY, 0.48f, -23.99f, 80);
-
-        // Simple rays
-        glColor3f(0.98f,0.84f,0.22f);
-        drawDDALine(sunX - 1.18f, sunY,         sunX - 0.90f, sunY,         -24.0f);
-        drawDDALine(sunX + 0.90f, sunY,         sunX + 1.18f, sunY,         -24.0f);
-        drawDDALine(sunX,         sunY - 1.18f, sunX,         sunY - 0.90f, -24.0f);
-        drawDDALine(sunX,         sunY + 0.90f, sunX,         sunY + 1.18f, -24.0f);
-        drawDDALine(sunX - 0.86f, sunY - 0.86f, sunX - 0.66f, sunY - 0.66f, -24.0f);
-        drawDDALine(sunX + 0.66f, sunY - 0.66f, sunX + 0.86f, sunY - 0.86f, -24.0f);
-        drawDDALine(sunX - 0.86f, sunY + 0.86f, sunX - 0.66f, sunY + 0.66f, -24.0f);
-        drawDDALine(sunX + 0.66f, sunY + 0.66f, sunX + 0.86f, sunY + 0.86f, -24.0f);
-
-        glColor3f(0.98f,0.80f,0.24f);
-        drawBresenhamCircleGrid(0, 0, 16, sunX, sunY, 0.051f, -23.99f);
-
-        glColor3f(0.98f,0.98f,0.99f);
-        drawCloud(wrapRange(-12.0f + m_cloudOffsetA, -24.0f, 24.0f), 5.0f,-18.0f);
-        drawCloud(wrapRange( -5.5f + m_cloudOffsetB, -24.0f, 24.0f), 5.7f,-20.0f);
-        drawCloud(wrapRange(  0.8f + m_cloudOffsetC, -24.0f, 24.0f), 4.9f,-17.0f);
-        drawCloud(wrapRange(  8.0f + m_cloudOffsetD, -24.0f, 24.0f), 5.5f,-19.2f);
-        glPointSize(1.0f);
-        glEnable(GL_LIGHTING);
-    }
-
-    void drawCloud(float x, float y, float z) const {
-        glColor3f(0.98f,0.98f,0.99f);
-        drawFilledCircleFan(x,          y,        0.52f, z, 32);
-        drawFilledCircleFan(x + 0.58f,  y + 0.12f,0.58f, z, 32);
-        drawFilledCircleFan(x - 0.56f,  y + 0.01f,0.48f, z, 32);
-
-        // Single filled circle standing with the cloud group
-        drawFilledCircleFan(x + 1.05f, y + 0.34f, 0.22f, z, 28);
-
-        glColor3f(0.88f,0.88f,0.92f);
-        drawBresenhamCircleGrid(0, 0, 9, x,  y, 0.058f, z);
-        drawBresenhamCircleGrid(0, 0,10, x + 0.58f, y + 0.12f, 0.058f, z);
-        drawBresenhamCircleGrid(0, 0, 8, x - 0.56f, y + 0.01f, 0.058f, z);
-        drawBresenhamCircleGrid(0, 0, 4, x + 1.05f, y + 0.34f, 0.058f, z);
-    }
-
-    void drawForegroundGrass() const {
-        const GLfloat a[]={0.08f,0.20f,0.08f,1}; const GLfloat d[]={0.16f,0.45f,0.16f,1}; const GLfloat s[]={0.03f,0.03f,0.03f,1};
-        setMaterial(a,d,s,6.0f);
-        glPushMatrix(); glTranslatef(0,-1.22f,9.0f); drawScaledCube(34.0f,0.18f,15.5f); glPopMatrix();
-    }
-
-    void drawRearGrass() const {
-        const GLfloat a[]={0.08f,0.20f,0.08f,1}; const GLfloat d[]={0.16f,0.45f,0.16f,1}; const GLfloat s[]={0.03f,0.03f,0.03f,1};
-        setMaterial(a,d,s,6.0f);
-        glPushMatrix(); glTranslatef(0,-1.20f,-2.0f); drawScaledCube(34.0f,0.14f,9.0f); glPopMatrix();
-    }
-
-    void drawRoad() const {
-        const GLfloat a[]={0.07f,0.07f,0.07f,1}; const GLfloat d[]={0.16f,0.16f,0.16f,1}; const GLfloat s[]={0.22f,0.22f,0.22f,1};
-        setMaterial(a,d,s,26.0f);
-        glPushMatrix(); glTranslatef(0,-1.14f,4.2f); drawScaledCube(33.0f,0.08f,5.2f); glPopMatrix();
-
-        const GLfloat cA[]={0.30f,0.30f,0.30f,1}; const GLfloat cD[]={0.62f,0.62f,0.62f,1}; const GLfloat cS[]={0.08f,0.08f,0.08f,1};
-        setMaterial(cA,cD,cS,8.0f);
-        glPushMatrix(); glTranslatef(0,-1.08f,1.6f); drawScaledCube(33.0f,0.06f,0.16f); glPopMatrix();
-        glPushMatrix(); glTranslatef(0,-1.08f,6.8f); drawScaledCube(33.0f,0.06f,0.16f); glPopMatrix();
-
-        const GLfloat dA[]={0.22f,0.22f,0.18f,1}; const GLfloat dD[]={0.90f,0.90f,0.72f,1}; const GLfloat dS[]={0.15f,0.15f,0.12f,1};
-        setMaterial(dA,dD,dS,8.0f);
-        for (int i=-8; i<=8; ++i) {
-            glPushMatrix(); glTranslatef(i*1.9f,-1.09f,4.2f); drawScaledCube(1.25f,0.01f,0.14f); glPopMatrix();
-        }
-    }
-
-    void drawDriveway() const {
-        const GLfloat a[]={0.15f,0.15f,0.16f,1}; const GLfloat d[]={0.34f,0.34f,0.36f,1}; const GLfloat s[]={0.10f,0.10f,0.10f,1};
-        setMaterial(a,d,s,14.0f);
-        glPushMatrix(); glTranslatef(-2.6f,-1.13f,1.6f); drawScaledCube(2.8f,0.05f,3.0f); glPopMatrix();
-    }
-
-    void drawHouseBody() const {
-        const GLfloat wA[]={0.32f,0.27f,0.22f,1}; const GLfloat wD[]={0.68f,0.58f,0.48f,1}; const GLfloat wS[]={0.08f,0.08f,0.08f,1};
-        setMaterial(wA,wD,wS,10.0f);
-        glPushMatrix(); glTranslatef(2.6f,-1.00f,-1.1f); drawScaledCube(8.1f,0.24f,4.8f); glPopMatrix();
-        glPushMatrix(); glTranslatef(2.6f,-0.28f,-1.1f); drawScaledCube(8.0f,1.65f,4.6f); glPopMatrix();
-        glPushMatrix(); glTranslatef(2.6f, 1.46f,-1.1f); drawScaledCube(6.4f,1.55f,4.2f); glPopMatrix();
-
-        const GLfloat rA[]={0.18f,0.08f,0.07f,1}; const GLfloat rD[]={0.52f,0.18f,0.16f,1}; const GLfloat rS[]={0.10f,0.08f,0.08f,1};
-        setMaterial(rA,rD,rS,18.0f);
-        glPushMatrix(); glTranslatef(2.6f,2.62f,-1.1f); glRotatef(45,0,0,1); drawScaledCube(5.2f,0.20f,4.4f); glPopMatrix();
-        glPushMatrix(); glTranslatef(2.6f,2.62f,-1.1f); glRotatef(-45,0,0,1); drawScaledCube(5.2f,0.20f,4.4f); glPopMatrix();
-
-        const GLfloat rgA[]={0.14f,0.06f,0.05f,1}; const GLfloat rgD[]={0.46f,0.14f,0.12f,1}; const GLfloat rgS[]={0.10f,0.08f,0.08f,1};
-        setMaterial(rgA,rgD,rgS,20.0f);
-        glPushMatrix(); glTranslatef(2.6f,3.65f,-1.1f); drawScaledCube(0.22f,0.18f,4.32f); glPopMatrix();
-        glPushMatrix(); glTranslatef(2.6f,2.65f, 1.02f); drawScaledCube(6.9f,1.05f,0.05f); glPopMatrix();
-
-        const GLfloat tA[]={0.24f,0.20f,0.16f,1}; const GLfloat tD[]={0.76f,0.68f,0.58f,1}; const GLfloat tS[]={0.12f,0.12f,0.12f,1};
-        setMaterial(tA,tD,tS,14.0f);
-        glPushMatrix(); glTranslatef(2.6f,0.35f,1.22f); drawScaledCube(8.05f,0.08f,0.07f); glPopMatrix();
-
-        drawFrontDoorAndCanopy();
-        drawMainWindows();
-    }
-
-    void drawMainWindows() const {
-        const GLfloat gA[]={0.10f,0.14f,0.16f,1}; const GLfloat gD[]={0.30f,0.45f,0.52f,1}; const GLfloat gS[]={0.80f,0.85f,0.90f,1};
-        setMaterial(gA,gD,gS,92.0f);
-        const float zF=1.21f;
-        const float xL[4]={0.9f,4.3f,0.9f,4.3f};
-        const float yL[4]={1.45f,1.45f,-0.10f,-0.10f};
-        for (int i=0; i<4; ++i) {
-            glPushMatrix(); glTranslatef(xL[i],yL[i],zF); drawScaledCube(1.05f,0.82f,0.08f); glPopMatrix();
-            const GLfloat fA[]={0.20f,0.18f,0.15f,1}; const GLfloat fD[]={0.52f,0.44f,0.34f,1}; const GLfloat fS[]={0.08f,0.08f,0.08f,1};
-            setMaterial(fA,fD,fS,8.0f);
-            glPushMatrix(); glTranslatef(xL[i],yL[i],zF+0.05f); drawScaledCube(0.08f,0.82f,0.03f); glPopMatrix();
-            glPushMatrix(); glTranslatef(xL[i],yL[i],zF+0.05f); drawScaledCube(1.05f,0.08f,0.03f); glPopMatrix();
-        }
-    }
-
-    void drawFrontDoorAndCanopy() const {
-        const GLfloat dA[]={0.16f,0.10f,0.06f,1}; const GLfloat dD[]={0.45f,0.28f,0.15f,1}; const GLfloat dS[]={0.12f,0.10f,0.08f,1};
-        setMaterial(dA,dD,dS,20.0f);
-        glPushMatrix(); glTranslatef(2.5f,-0.25f,1.22f); drawScaledCube(0.95f,1.75f,0.14f); glPopMatrix();
-        const GLfloat cA[]={0.22f,0.11f,0.09f,1}; const GLfloat cD[]={0.55f,0.22f,0.18f,1}; const GLfloat cS[]={0.10f,0.08f,0.08f,1};
-        setMaterial(cA,cD,cS,14.0f);
-        glPushMatrix(); glTranslatef(2.5f,0.85f,1.34f); glRotatef( 45,0,0,1); drawScaledCube(1.2f,0.11f,1.1f); glPopMatrix();
-        glPushMatrix(); glTranslatef(2.5f,0.85f,1.34f); glRotatef(-45,0,0,1); drawScaledCube(1.2f,0.11f,1.1f); glPopMatrix();
-    }
-
-    void drawGarage() const {
-        const GLfloat wA[]={0.30f,0.26f,0.22f,1}; const GLfloat wD[]={0.64f,0.56f,0.48f,1}; const GLfloat wS[]={0.08f,0.08f,0.08f,1};
-        setMaterial(wA,wD,wS,8.0f);
-        glPushMatrix(); glTranslatef(-2.6f,-0.08f,-1.1f); drawScaledCube(3.4f,2.35f,4.4f); glPopMatrix();
-
-        const GLfloat dA[]={0.24f,0.24f,0.25f,1}; const GLfloat dD[]={0.78f,0.78f,0.80f,1}; const GLfloat dS[]={0.20f,0.20f,0.20f,1};
-        setMaterial(dA,dD,dS,24.0f);
-        glPushMatrix(); glTranslatef(-2.6f,-0.25f+m_garageOpen*1.55f,1.14f); drawScaledCube(2.55f,1.75f,0.08f); glPopMatrix();
-
-        const GLfloat sA[]={0.18f,0.18f,0.20f,1}; const GLfloat sD[]={0.52f,0.52f,0.55f,1}; const GLfloat sS[]={0.10f,0.10f,0.10f,1};
-        setMaterial(sA,sD,sS,8.0f);
-        for (int i=-2; i<=2; ++i) {
-            glPushMatrix(); glTranslatef(-2.6f,(-0.25f+m_garageOpen*1.55f)+i*0.37f,1.18f); drawScaledCube(2.55f,0.03f,0.02f); glPopMatrix();
-        }
-    }
-
-    void drawTreeAndBushes() const {
-        glDisable(GL_LIGHTING);
-
-        // Trunk
-        glColor3f(0.45f,0.28f,0.16f);
-        glBegin(GL_QUADS);
-        glVertex3f(-6.93f,-0.55f,-0.45f);
-        glVertex3f(-6.27f,-0.55f,-0.45f);
-        glVertex3f(-6.27f, 2.05f,-0.45f);
-        glVertex3f(-6.93f, 2.05f,-0.45f);
+    // Window glass.
+    glColor3f(0.62f, 0.82f, 0.95f);
+    glBegin(GL_POLYGON);
+    glVertex2f(-30.0f, 33.0f); // Rear window bottom-left
+    glVertex2f( 33.0f, 33.0f); // Front window bottom-right
+    glVertex2f( 16.0f, 52.0f); // Front window top-right
+    glVertex2f(-14.0f, 52.0f); // Rear window top-left
+    glEnd();
+
+    // Door split line.
+    glColor3f(0.20f, 0.20f, 0.20f);
+    glLineWidth(2.0f);
+    glBegin(GL_LINES);
+    glVertex2f(0.0f, 2.0f); glVertex2f(0.0f, 52.0f); // Middle door separation
+    glEnd();
+    glLineWidth(1.0f);
+
+    // Wheels.
+    drawWheel(-wheelOffsetX, wheelCenterY, wheelRotationAngle);
+    drawWheel( wheelOffsetX, wheelCenterY, wheelRotationAngle);
+
+    // Headlights as transparent yellow triangles (fake lighting effect).
+    if (headlightsEnabled) {
+        glColor4f(1.0f, 0.96f, 0.45f, 0.33f);
+        glBegin(GL_TRIANGLES);
+        glVertex2f(70.0f, 20.0f);   // Triangle origin at front bumper
+        glVertex2f(180.0f, 56.0f);  // Upper light spread point
+        glVertex2f(180.0f, -8.0f);  // Lower light spread point
         glEnd();
 
-        glColor3f(0.30f,0.16f,0.08f);
-        drawDDALine(-6.93f,-0.55f,-6.93f,2.05f,-0.44f);
-        drawDDALine(-6.27f,-0.55f,-6.27f,2.05f,-0.44f);
-        drawDDALine(-6.60f, 1.50f,-7.30f,2.15f,-0.44f);
-        drawDDALine(-6.60f, 1.62f,-5.90f,2.28f,-0.44f);
-
-        // Canopy (proper filled tree crown)
-        glColor3f(0.16f,0.52f,0.20f);
-        drawFilledCircleFan(-6.60f, 2.70f, 0.95f, -0.47f, 38);
-        drawFilledCircleFan(-5.95f, 2.38f, 0.80f, -0.47f, 34);
-        drawFilledCircleFan(-7.25f, 2.38f, 0.80f, -0.47f, 34);
-        drawFilledCircleFan(-6.60f, 3.18f, 0.62f, -0.47f, 30);
-
-        glColor3f(0.11f,0.36f,0.14f);
-        drawBresenhamCircleGrid(0, 0, 16, -6.60f, 2.70f, 0.06f, -0.46f);
-        drawBresenhamCircleGrid(0, 0, 13, -5.95f, 2.38f, 0.06f, -0.46f);
-        drawBresenhamCircleGrid(0, 0, 13, -7.25f, 2.38f, 0.06f, -0.46f);
-
-        // Bushes
-        glColor3f(0.15f,0.45f,0.16f);
-        drawFilledCircleFan(-5.10f, -0.50f, 0.50f, 0.70f, 30);
-        drawFilledCircleFan(-5.85f, -0.54f, 0.42f, 0.50f, 28);
-        glColor3f(0.10f,0.32f,0.12f);
-        drawBresenhamCircleGrid(0, 0, 8, -5.10f, -0.50f, 0.06f, 0.70f);
-        drawBresenhamCircleGrid(0, 0, 7, -5.85f, -0.54f, 0.06f, 0.50f);
-
-        glPointSize(1.0f);
-        glEnable(GL_LIGHTING);
+        glColor3f(1.0f, 1.0f, 0.72f);
+        drawRectangle(66.0f, 14.0f, 8.0f, 8.0f); // Physical headlight block
     }
 
-    void drawFence() const {
-        const GLfloat wA[]={0.16f,0.12f,0.08f,1}; const GLfloat wD[]={0.56f,0.42f,0.25f,1}; const GLfloat wS[]={0.06f,0.06f,0.05f,1};
-        setMaterial(wA,wD,wS,7.0f);
-        for (int i=0; i<32; ++i) {
-            const float x=-11.2f+i*0.72f;
-            if ((x>1.5f && x<3.5f)||(x>-3.8f && x<-1.5f)) continue;
-            glPushMatrix(); glTranslatef(x,-0.26f,1.2f); drawScaledCube(0.12f,1.05f,0.10f); glPopMatrix();
-            glPushMatrix(); glTranslatef(x, 0.30f,1.2f); glRotatef(45,0,0,1); drawScaledCube(0.12f,0.18f,0.10f); glPopMatrix();
+    // Rear taillights.
+    if (taillightsEnabled) {
+        glColor3f(0.95f, 0.08f, 0.08f);
+        drawRectangle(-74.0f, 16.0f, 8.0f, 8.0f); // Rear taillight block
+    }
+
+    glDisable(GL_BLEND);
+    glPopMatrix();
+}
+
+void drawCloud(float cloudCenterX, float cloudCenterY) {
+    const float centerPuffRadius = 28.0f;      // Main middle cloud puff
+    const float leftPuffRadius = 22.0f;        // Left cloud puff
+    const float rightPuffRadius = 24.0f;       // Right cloud puff
+    const float topPuffRadius = 20.0f;         // Top cloud puff
+
+    glColor3f(0.98f, 0.98f, 0.99f);
+    drawFilledCircle(cloudCenterX,          cloudCenterY,          centerPuffRadius, 28);
+    drawFilledCircle(cloudCenterX - 30.0f,  cloudCenterY - 4.0f,   leftPuffRadius,   24);
+    drawFilledCircle(cloudCenterX + 30.0f,  cloudCenterY - 2.0f,   rightPuffRadius,  24);
+    drawFilledCircle(cloudCenterX + 2.0f,   cloudCenterY + 18.0f,  topPuffRadius,    24);
+}
+
+void drawStars() {
+    glPointSize(2.8f);
+    glBegin(GL_POINTS);
+
+    for (int starIndex = 0; starIndex < STAR_COUNT; ++starIndex) {
+        // Brightness oscillates over time to create twinkling effect.
+        const float phaseShift = static_cast<float>(starIndex) * 0.71f;
+        const float wave = 0.5f + 0.5f * std::sin(starTwinkleCounter + phaseShift);
+        const float brightness = 0.35f + 0.65f * wave;
+
+        glColor3f(brightness, brightness, brightness * 0.92f);
+        glVertex2f(starPositionX[starIndex], starPositionY[starIndex]);
+    }
+
+    glEnd();
+    glPointSize(1.0f);
+}
+
+void drawRoad() {
+    const float roadLeftX = 0.0f;                 // Road starts at screen left border
+    const float roadWidth = 1280.0f;              // Road covers full screen width
+    const float edgeLineThickness = 5.0f;         // Thickness for road edge lines
+
+    if (roadNightMode_current) {
+        glColor3f(0.10f, 0.10f, 0.12f); // Dark asphalt at night
+    } else {
+        glColor3f(0.23f, 0.23f, 0.25f); // Gray asphalt in daytime
+    }
+    drawRectangle(roadLeftX, roadBottomY_current, roadWidth, roadHeight_current);
+
+    // Road boundary lines.
+    glColor3f(0.75f, 0.75f, 0.78f);
+    drawRectangle(roadLeftX, roadBottomY_current, roadWidth, edgeLineThickness);
+    drawRectangle(roadLeftX, roadBottomY_current + roadHeight_current - edgeLineThickness, roadWidth, edgeLineThickness);
+
+    // Lane markers.
+    const float laneHeight = roadHeight_current / static_cast<float>(roadLaneCount_current);
+    const float dashWidth = 48.0f;      // Width of each lane marker dash
+    const float dashHeight = 4.0f;      // Thickness of dash
+    const float dashGap = 28.0f;        // Gap between dashes
+
+    if (roadNightMode_current) {
+        glColor3f(0.92f, 0.92f, 0.64f); // Slight warm yellow at night
+    } else {
+        glColor3f(0.95f, 0.95f, 0.72f); // Bright yellow in daytime
+    }
+
+    for (int laneIndex = 1; laneIndex < roadLaneCount_current; ++laneIndex) {
+        const float laneMarkerY = roadBottomY_current + laneHeight * static_cast<float>(laneIndex);
+
+        for (float dashX = 20.0f; dashX < 1280.0f; dashX += (dashWidth + dashGap)) {
+            drawRectangle(dashX, laneMarkerY - dashHeight * 0.5f, dashWidth, dashHeight);
         }
-        glPushMatrix(); glTranslatef(-7.8f,-0.06f,1.2f); drawScaledCube(6.8f,0.08f,0.10f); glPopMatrix();
-        glPushMatrix(); glTranslatef(-7.8f,-0.40f,1.2f); drawScaledCube(6.8f,0.08f,0.10f); glPopMatrix();
-        glPushMatrix(); glTranslatef( 7.5f,-0.06f,1.2f); drawScaledCube(7.0f,0.08f,0.10f); glPopMatrix();
-        glPushMatrix(); glTranslatef( 7.5f,-0.40f,1.2f); drawScaledCube(7.0f,0.08f,0.10f); glPopMatrix();
-    }
-
-    float        m_sunTimeSec;
-    float        m_cloudOffsetA;
-    float        m_cloudOffsetB;
-    float        m_cloudOffsetC;
-    float        m_cloudOffsetD;
-    Car          m_car;
-    Human        m_human;
-    float        m_garageOpen;
-    SequencePhase m_phase;
-    float        m_phaseTime;
-    bool         m_morningSequenceDone;
-};
-
-// ============================================================================
-//  Globals / GLUT callbacks
-// ============================================================================
-static HomeEnvironment gHomeEnvironment;
-
-static void setupSceneLighting() {
-    const GLfloat morningAmb[] ={0.42f,0.42f,0.45f,1}; const GLfloat morningDif[]={0.95f,0.92f,0.88f,1};
-    const GLfloat morningSpc[] ={1.0f,0.98f,0.95f,1};  const GLfloat morningPos[]={4.0f,8.0f,10.0f,1};
-    const GLfloat nightAmb[]   ={0.07f,0.08f,0.12f,1}; const GLfloat nightDif[]  ={0.20f,0.22f,0.30f,1};
-    const GLfloat nightSpc[]   ={0.22f,0.22f,0.30f,1}; const GLfloat nightPos[]  ={-4.0f,5.0f,6.0f,1};
-
-    if (currentScene == 9) {
-        glLightModelfv(GL_LIGHT_MODEL_AMBIENT, nightAmb);
-        glLightfv(GL_LIGHT0, GL_DIFFUSE,  nightDif);
-        glLightfv(GL_LIGHT0, GL_SPECULAR, nightSpc);
-        glLightfv(GL_LIGHT0, GL_POSITION, nightPos);
-        glClearColor(0.03f,0.04f,0.08f,1);
-    } else {
-        glLightModelfv(GL_LIGHT_MODEL_AMBIENT, morningAmb);
-        glLightfv(GL_LIGHT0, GL_DIFFUSE,  morningDif);
-        glLightfv(GL_LIGHT0, GL_SPECULAR, morningSpc);
-        glLightfv(GL_LIGHT0, GL_POSITION, morningPos);
-        glClearColor(0.56f,0.78f,0.94f,1);
     }
 }
 
-static void resize(int w, int h) {
-    if (h <= 0) h = 1;
-    gWindowWidth = w; gWindowHeight = h;
-    glViewport(0,0,w,h);
-    glMatrixMode(GL_PROJECTION); glLoadIdentity();
-    setPerspective(60.0f, (float)w/(float)h, 0.1f, 200.0f);
-    glMatrixMode(GL_MODELVIEW); glLoadIdentity();
+void drawBuilding(float buildingPositionX, float buildingBottomY, float buildingWidth, float buildingHeight) {
+    // Building body color is varied slightly by position to avoid repetition.
+    const float colorSeed = std::fabs(std::sin(buildingPositionX * 0.007f));
+    const float baseRed = 0.22f + 0.16f * colorSeed;
+    const float baseGreen = 0.24f + 0.14f * colorSeed;
+    const float baseBlue = 0.28f + 0.12f * colorSeed;
+
+    glColor3f(baseRed, baseGreen, baseBlue);
+    drawRectangle(buildingPositionX, buildingBottomY, buildingWidth, buildingHeight);
+
+    // Roof strip.
+    glColor3f(baseRed * 0.8f, baseGreen * 0.8f, baseBlue * 0.8f);
+    drawRectangle(buildingPositionX, buildingBottomY + buildingHeight, buildingWidth, 10.0f);
+
+    // Window grid setup.
+    const float windowMarginX = 11.0f; // Left/right inner margin for windows
+    const float windowMarginY = 12.0f; // Bottom/top inner margin for windows
+    const float windowWidth = 12.0f;   // Width of each small window
+    const float windowHeight = 15.0f;  // Height of each small window
+    const float windowGapX = 10.0f;    // Horizontal spacing between windows
+    const float windowGapY = 10.0f;    // Vertical spacing between windows
+
+    const int windowColumnCount = static_cast<int>((buildingWidth - 2.0f * windowMarginX) / (windowWidth + windowGapX));
+    const int windowRowCount = static_cast<int>((buildingHeight - 2.0f * windowMarginY) / (windowHeight + windowGapY));
+
+    for (int rowIndex = 0; rowIndex < windowRowCount; ++rowIndex) {
+        for (int columnIndex = 0; columnIndex < windowColumnCount; ++columnIndex) {
+            const float windowX = buildingPositionX + windowMarginX + columnIndex * (windowWidth + windowGapX);
+            const float windowY = buildingBottomY + windowMarginY + rowIndex * (windowHeight + windowGapY);
+
+            if (buildingWindowNightMode) {
+                const float flicker = 0.45f + 0.55f * (0.5f + 0.5f * std::sin(starTwinkleCounter + rowIndex + columnIndex * 0.5f));
+                glColor3f(0.55f + 0.45f * flicker, 0.50f + 0.35f * flicker, 0.22f + 0.18f * flicker);
+            } else {
+                glColor3f(0.62f, 0.78f, 0.90f);
+            }
+
+            drawRectangle(windowX, windowY, windowWidth, windowHeight);
+        }
+    }
 }
 
-static void display() {
-    setupSceneLighting();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glMatrixMode(GL_MODELVIEW); glLoadIdentity();
+void drawFan(float fanCenterX, float fanCenterY) {
+    const float rodWidth = 6.0f;       // Ceiling rod width
+    const float rodHeight = 38.0f;     // Ceiling rod height
+    const float bladeLength = 62.0f;   // Each blade extends this far
+    const float bladeHalfWidth = 10.0f; // Half thickness of blade
 
-    if (gFollowCamera && currentScene == 1) {
-        const float carX = gHomeEnvironment.getCarX();
-        const float carZ = gHomeEnvironment.getCarZ();
-        const float tX = carX - 3.8f, tY = 2.6f, tZ = carZ + 4.5f;
-        if (!gCameraInitialized) { gSmoothCamX=tX; gSmoothCamY=tY; gSmoothCamZ=tZ; gCameraInitialized=true; }
-        const float k = 0.08f;
-        gSmoothCamX += (tX - gSmoothCamX)*k;
-        gSmoothCamY += (tY - gSmoothCamY)*k;
-        gSmoothCamZ += (tZ - gSmoothCamZ)*k;
-        setLookAt(gSmoothCamX,gSmoothCamY,gSmoothCamZ, carX+2.3f,0.45f,carZ, 0,1,0);
-    } else {
-        gCameraInitialized = false;
-        setLookAt(0,2.8f,13.6f, 0,0.35f,-0.6f, 0,1,0);
+    // Rod from ceiling.
+    glColor3f(0.34f, 0.34f, 0.36f);
+    drawRectangle(fanCenterX - rodWidth * 0.5f, fanCenterY - rodHeight, rodWidth, rodHeight);
+
+    glPushMatrix();
+    glTranslatef(fanCenterX, fanCenterY - rodHeight, 0.0f); // Fan hub pivot point
+
+    glColor3f(0.25f, 0.25f, 0.27f);
+    drawFilledCircle(0.0f, 0.0f, 9.0f, 24); // Hub circle
+
+    // We rotate the whole blade set every frame to simulate spinning fan.
+    glRotatef(fanRotationAngle_scene4, 0.0f, 0.0f, 1.0f);
+
+    glColor3f(0.62f, 0.62f, 0.64f);
+    for (int bladeIndex = 0; bladeIndex < 3; ++bladeIndex) {
+        glRotatef(120.0f, 0.0f, 0.0f, 1.0f);
+
+        glBegin(GL_TRIANGLES);
+        glVertex2f(0.0f, 0.0f);                      // Blade root at hub center
+        glVertex2f(bladeLength, -bladeHalfWidth);    // Blade tip lower point
+        glVertex2f(bladeLength, bladeHalfWidth);     // Blade tip upper point
+        glEnd();
     }
 
-    if (currentScene==1 || currentScene==9) {
-        gHomeEnvironment.renderScene();
-    } else {
-        glDisable(GL_LIGHTING);
-        glColor3f(0.15f,0.18f,0.24f);
-        glPushMatrix(); glTranslatef(0,-0.5f,-1.5f); drawScaledCube(18.0f,0.02f,12.0f); glPopMatrix();
-        glEnable(GL_LIGHTING);
+    glPopMatrix();
+}
+
+void drawCharacter(float characterPositionX, float characterPositionY) {
+    // Character dimensions (simple stylized human for explainability).
+    const float footToHipHeight = 30.0f;      // Leg length from foot to hip
+    const float torsoHeight = 42.0f;          // Torso height
+    const float torsoWidth = 28.0f;           // Torso width
+    const float headRadius = 11.0f;           // Head circle radius
+
+    glPushMatrix();
+    glTranslatef(characterPositionX, characterPositionY, 0.0f);
+
+    if (!characterFacingRight) {
+        glScalef(-1.0f, 1.0f, 1.0f); // Mirror model so it can face left
     }
+
+    // Legs.
+    glColor3f(0.14f, 0.14f, 0.20f);
+
+    if (characterSittingPose) {
+        // Sitting pose: upper legs are forward and lower legs are downward.
+        drawRectangle(-8.0f, 14.0f, 6.0f, 16.0f); // Left upper leg
+        drawRectangle( 2.0f, 14.0f, 6.0f, 16.0f); // Right upper leg
+        drawRectangle(-8.0f,  0.0f, 6.0f, 16.0f); // Left lower leg
+        drawRectangle( 2.0f,  0.0f, 6.0f, 16.0f); // Right lower leg
+    } else {
+        // Standing/walking pose with opposite swing on two legs.
+        glPushMatrix();
+        glTranslatef(-7.0f, footToHipHeight, 0.0f);                // Left leg pivot at hip
+        glRotatef(characterLegSwingAngleDegrees, 0.0f, 0.0f, 1.0f);
+        drawRectangle(-3.0f, -footToHipHeight, 6.0f, footToHipHeight);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef(7.0f, footToHipHeight, 0.0f);                 // Right leg pivot at hip
+        glRotatef(-characterLegSwingAngleDegrees, 0.0f, 0.0f, 1.0f);
+        drawRectangle(-3.0f, -footToHipHeight, 6.0f, footToHipHeight);
+        glPopMatrix();
+    }
+
+    // Shoes.
+    glColor3f(0.08f, 0.08f, 0.09f);
+    drawRectangle(-10.0f, -2.0f, 9.0f, 4.0f); // Left shoe
+    drawRectangle(  1.0f, -2.0f, 9.0f, 4.0f); // Right shoe
+
+    // Torso.
+    glColor3f(0.14f, 0.16f, 0.28f);
+    drawRectangle(-torsoWidth * 0.5f, footToHipHeight, torsoWidth, torsoHeight);
+
+    // Shirt collar / tie for formal office look.
+    glColor3f(0.95f, 0.95f, 0.95f);
+    drawRectangle(-6.0f, footToHipHeight + torsoHeight - 4.0f, 12.0f, 4.0f);
+    glColor3f(0.72f, 0.10f, 0.12f);
+    drawRectangle(-2.0f, footToHipHeight + 8.0f, 4.0f, 22.0f);
+
+    // Arms.
+    glColor3f(0.14f, 0.16f, 0.28f);
+
+    glPushMatrix();
+    glTranslatef(-torsoWidth * 0.5f, footToHipHeight + torsoHeight - 6.0f, 0.0f); // Left shoulder pivot
+    glRotatef(characterLeftArmAngleDegrees, 0.0f, 0.0f, 1.0f);
+    drawRectangle(-4.0f, -24.0f, 8.0f, 24.0f);
+    glPopMatrix();
+
+    float rightArmDrawAngle = characterRightArmAngleDegrees;
+    if (characterPointingPose) {
+        rightArmDrawAngle = -58.0f + pointerOscillationAngle_scene6; // Raise arm toward board
+    }
+
+    glPushMatrix();
+    glTranslatef(torsoWidth * 0.5f, footToHipHeight + torsoHeight - 6.0f, 0.0f); // Right shoulder pivot
+    glRotatef(rightArmDrawAngle, 0.0f, 0.0f, 1.0f);
+    drawRectangle(-4.0f, -24.0f, 8.0f, 24.0f);
+    glPopMatrix();
+
+    // Head and face.
+    glColor3f(0.88f, 0.72f, 0.58f);
+    drawFilledCircle(0.0f, footToHipHeight + torsoHeight + headRadius + 3.0f, headRadius, 28);
+
+    glColor3f(0.08f, 0.08f, 0.09f);
+    drawRectangle(-9.0f, footToHipHeight + torsoHeight + 16.0f, 18.0f, 4.0f); // Hair strip
+
+    // Optional briefcase in right hand.
+    if (characterCarryBriefcase) {
+        glColor3f(0.28f, 0.18f, 0.10f);
+        drawRectangle(15.0f, 12.0f, 18.0f, 22.0f);
+        glColor3f(0.45f, 0.34f, 0.20f);
+        drawRectangle(20.0f, 34.0f, 8.0f, 4.0f);
+    }
+
+    glPopMatrix();
+}
+
+// ==========================================================
+// ====== COMMON ENVIRONMENT HELPERS ========================
+// ==========================================================
+
+void drawBitmapText(float textPositionX, float textPositionY, const char* textString) {
+    glRasterPos2f(textPositionX, textPositionY);
+    for (const char* characterPointer = textString; *characterPointer != '\0'; ++characterPointer) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *characterPointer);
+    }
+}
+
+void drawTextIfNeeded() {
+    if (!showTextOverlay) {
+        return;
+    }
+
+    const char* sceneTitleText[10] = {
+        "",
+        "Scene 1: Morning Home Departure",
+        "Scene 2: Morning Traffic",
+        "Scene 3: Office Arrival",
+        "Scene 4: Main Office Work",
+        "Scene 5: Coffee Break",
+        "Scene 6: Presentation",
+        "Scene 7: Leaving Office",
+        "Scene 8: Evening Traffic",
+        "Scene 9: Return Home"
+    };
+
+    char frameInfoText[128];
+    std::snprintf(frameInfoText, sizeof(frameInfoText), "Frame: %d", sceneFrameCounter);
+
+    // Text shadow for readability on bright and dark backgrounds.
+    glColor3f(0.0f, 0.0f, 0.0f);
+    drawBitmapText(23.0f, 692.0f, sceneTitleText[currentScene]);
+    drawBitmapText(23.0f, 664.0f, frameInfoText);
+
+    glColor3f(1.0f, 1.0f, 1.0f);
+    drawBitmapText(20.0f, 695.0f, sceneTitleText[currentScene]);
+    drawBitmapText(20.0f, 667.0f, frameInfoText);
+}
+
+void drawSun(float sunCenterX, float sunCenterY) {
+    glColor3f(1.0f, 0.92f, 0.32f);
+    drawFilledCircle(sunCenterX, sunCenterY, 36.0f, 36);
+
+    glColor3f(1.0f, 0.84f, 0.22f);
+    glLineWidth(2.0f);
+    glBegin(GL_LINES);
+    glVertex2f(sunCenterX - 54.0f, sunCenterY); glVertex2f(sunCenterX - 38.0f, sunCenterY); // Left ray
+    glVertex2f(sunCenterX + 38.0f, sunCenterY); glVertex2f(sunCenterX + 54.0f, sunCenterY); // Right ray
+    glVertex2f(sunCenterX, sunCenterY - 54.0f); glVertex2f(sunCenterX, sunCenterY - 38.0f); // Bottom ray
+    glVertex2f(sunCenterX, sunCenterY + 38.0f); glVertex2f(sunCenterX, sunCenterY + 54.0f); // Top ray
+    glEnd();
+    glLineWidth(1.0f);
+}
+
+void drawMoon(float moonCenterX, float moonCenterY) {
+    glColor3f(0.90f, 0.92f, 0.96f);
+    drawFilledCircle(moonCenterX, moonCenterY, 30.0f, 34);
+
+    // Crescent effect by drawing a dark overlapping circle.
+    glColor3f(0.08f, 0.10f, 0.18f);
+    drawFilledCircle(moonCenterX + 10.0f, moonCenterY + 4.0f, 26.0f, 34);
+}
+
+void drawParallaxCity(float baseParallaxOffset, bool nightMode) {
+    buildingWindowNightMode = nightMode;
+
+    // Parallax explanation:
+    // Far buildings use smaller offset multiplier, so they move slower.
+    // Near buildings use larger offset multiplier, so they move faster.
+    const float farLayerOffset = baseParallaxOffset * 0.35f;
+    const float nearLayerOffset = baseParallaxOffset * 0.70f;
+
+    const float repeatingBlockWidth = 220.0f; // Horizontal repetition spacing for buildings
+
+    // Far layer (taller, more distant skyline).
+    for (int column = -1; column < 8; ++column) {
+        const float buildingX = -140.0f + column * repeatingBlockWidth + farLayerOffset;
+        drawBuilding(buildingX, 290.0f, 160.0f, 250.0f);
+    }
+
+    // Near layer (slightly shorter, appears closer to road).
+    for (int column = -1; column < 9; ++column) {
+        const float buildingX = -60.0f + column * repeatingBlockWidth + nearLayerOffset;
+        drawBuilding(buildingX, 250.0f, 140.0f, 190.0f);
+    }
+}
+
+void drawStreetLight(float poleBaseX, float poleBaseY, bool glowEnabled) {
+    const float poleHeight = 150.0f; // Pole vertical size
+    const float poleWidth = 8.0f;    // Pole width
+
+    glColor3f(0.22f, 0.22f, 0.25f);
+    drawRectangle(poleBaseX - poleWidth * 0.5f, poleBaseY, poleWidth, poleHeight);
+
+    // Lamp head.
+    glColor3f(0.55f, 0.55f, 0.58f);
+    drawRectangle(poleBaseX - 14.0f, poleBaseY + poleHeight - 8.0f, 28.0f, 8.0f);
+
+    // Glow effect uses transparent circles.
+    if (glowEnabled) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        const float pulsation = 0.5f + 0.5f * std::sin(starTwinkleCounter * 1.4f + poleBaseX * 0.03f);
+        const float glowAlpha = 0.18f + 0.16f * pulsation;
+
+        glColor4f(1.0f, 0.92f, 0.45f, glowAlpha);
+        drawFilledCircle(poleBaseX, poleBaseY + poleHeight - 10.0f, 30.0f, 30);
+
+        glColor4f(1.0f, 0.96f, 0.68f, glowAlpha + 0.12f);
+        drawFilledCircle(poleBaseX, poleBaseY + poleHeight - 10.0f, 16.0f, 28);
+
+        glDisable(GL_BLEND);
+    }
+}
+
+void drawWallClock(float centerX, float centerY, float handAngleDegrees) {
+    // Clock body.
+    glColor3f(0.94f, 0.94f, 0.94f);
+    drawFilledCircle(centerX, centerY, 26.0f, 32);
+
+    // Clock border ring.
+    glColor3f(0.25f, 0.25f, 0.28f);
+    drawFilledCircle(centerX, centerY, 22.0f, 30);
+
+    // White dial area.
+    glColor3f(0.99f, 0.99f, 0.99f);
+    drawFilledCircle(centerX, centerY, 20.0f, 28);
+
+    // Minute hand rotates over time.
+    const float angleRadians = handAngleDegrees * PI_VALUE / 180.0f;
+    const float handEndX = centerX + std::cos(angleRadians) * 14.0f;
+    const float handEndY = centerY + std::sin(angleRadians) * 14.0f;
+
+    glColor3f(0.10f, 0.10f, 0.10f);
+    glLineWidth(2.0f);
+    glBegin(GL_LINES);
+    glVertex2f(centerX, centerY);  glVertex2f(handEndX, handEndY); // Minute hand
+    glVertex2f(centerX, centerY);  glVertex2f(centerX + 0.0f, centerY + 10.0f); // Hour hand fixed simple
+    glEnd();
+    glLineWidth(1.0f);
+}
+
+void drawOfficeDeskSetup(float deskLeftX, float deskBottomY) {
+    // Desk top and body.
+    glColor3f(0.45f, 0.30f, 0.16f);
+    drawRectangle(deskLeftX, deskBottomY + 50.0f, 260.0f, 16.0f); // Table top board
+    drawRectangle(deskLeftX + 20.0f, deskBottomY, 22.0f, 50.0f);  // Left leg
+    drawRectangle(deskLeftX + 218.0f, deskBottomY, 22.0f, 50.0f); // Right leg
+
+    // Computer monitor.
+    glColor3f(0.14f, 0.14f, 0.16f);
+    drawRectangle(deskLeftX + 148.0f, deskBottomY + 70.0f, 82.0f, 56.0f); // Monitor frame
+    glColor3f(0.28f, 0.40f, 0.48f);
+    drawRectangle(deskLeftX + 154.0f, deskBottomY + 76.0f, 70.0f, 44.0f); // Monitor screen
+
+    glColor3f(0.22f, 0.22f, 0.24f);
+    drawRectangle(deskLeftX + 182.0f, deskBottomY + 58.0f, 14.0f, 12.0f); // Monitor stand
+
+    // Keyboard.
+    glColor3f(0.18f, 0.18f, 0.20f);
+    drawRectangle(deskLeftX + 126.0f, deskBottomY + 52.0f, 64.0f, 6.0f);
+
+    // Chair.
+    glColor3f(0.18f, 0.20f, 0.32f);
+    drawRectangle(deskLeftX + 48.0f, deskBottomY + 20.0f, 36.0f, 30.0f); // Chair seat
+    drawRectangle(deskLeftX + 46.0f, deskBottomY + 50.0f, 40.0f, 40.0f); // Chair back
+}
+
+void drawCoffeeMachine(float machineLeftX, float machineBottomY) {
+    // Machine body.
+    glColor3f(0.22f, 0.22f, 0.24f);
+    drawRectangle(machineLeftX, machineBottomY, 90.0f, 120.0f);
+
+    // Display panel.
+    glColor3f(0.30f, 0.54f, 0.68f);
+    drawRectangle(machineLeftX + 20.0f, machineBottomY + 80.0f, 50.0f, 24.0f);
+
+    // Nozzle.
+    glColor3f(0.70f, 0.70f, 0.72f);
+    drawRectangle(machineLeftX + 42.0f, machineBottomY + 56.0f, 8.0f, 16.0f);
+
+    // Cup on tray.
+    glColor3f(0.88f, 0.88f, 0.88f);
+    drawRectangle(machineLeftX + 35.0f, machineBottomY + 22.0f, 22.0f, 20.0f);
+    glColor3f(0.28f, 0.20f, 0.12f);
+    drawRectangle(machineLeftX + 38.0f, machineBottomY + 30.0f, 16.0f, 10.0f);
+}
+
+void drawSteamParticles() {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    for (int particleIndex = 0; particleIndex < STEAM_PARTICLE_COUNT; ++particleIndex) {
+        const SteamParticle& particle = coffeeSteamParticles[particleIndex];
+        glColor4f(0.95f, 0.95f, 0.95f, clampFloat(particle.alphaValue, 0.0f, 1.0f));
+        drawFilledCircle(particle.particleX, particle.particleY, 5.0f, 20);
+    }
+
+    glDisable(GL_BLEND);
+}
+
+void drawPresentationBoard(float boardLeftX, float boardBottomY, float boardWidth, float boardHeight) {
+    // White board panel.
+    glColor3f(0.95f, 0.95f, 0.95f);
+    drawRectangle(boardLeftX, boardBottomY, boardWidth, boardHeight);
+
+    // Border.
+    glColor3f(0.30f, 0.30f, 0.32f);
+    drawRectangle(boardLeftX, boardBottomY + boardHeight, boardWidth, 8.0f);
+
+    // Animated bar chart values.
+    const float barBaseY = boardBottomY + 28.0f; // Shared baseline for chart bars
+    const float barWidth = 42.0f;                // Width of each bar
+    const float barGap = 24.0f;                  // Horizontal gap between bars
+
+    const float targetBarHeightA = 90.0f;  // Final bar A height
+    const float targetBarHeightB = 130.0f; // Final bar B height
+    const float targetBarHeightC = 170.0f; // Final bar C height
+    const float targetBarHeightD = 210.0f; // Final bar D height
+
+    const float animatedHeightA = targetBarHeightA * presentationBarGrowRatio_scene6;
+    const float animatedHeightB = targetBarHeightB * presentationBarGrowRatio_scene6;
+    const float animatedHeightC = targetBarHeightC * presentationBarGrowRatio_scene6;
+    const float animatedHeightD = targetBarHeightD * presentationBarGrowRatio_scene6;
+
+    glColor3f(0.24f, 0.60f, 0.84f);
+    drawRectangle(boardLeftX + 40.0f, barBaseY, barWidth, animatedHeightA);
+
+    glColor3f(0.28f, 0.72f, 0.46f);
+    drawRectangle(boardLeftX + 40.0f + (barWidth + barGap), barBaseY, barWidth, animatedHeightB);
+
+    glColor3f(0.94f, 0.66f, 0.20f);
+    drawRectangle(boardLeftX + 40.0f + 2.0f * (barWidth + barGap), barBaseY, barWidth, animatedHeightC);
+
+    glColor3f(0.88f, 0.32f, 0.28f);
+    drawRectangle(boardLeftX + 40.0f + 3.0f * (barWidth + barGap), barBaseY, barWidth, animatedHeightD);
+
+    // Baseline.
+    glColor3f(0.35f, 0.35f, 0.35f);
+    drawRectangle(boardLeftX + 30.0f, barBaseY - 4.0f, boardWidth - 60.0f, 4.0f);
+}
+
+// ==========================================================
+// ====== DEVELOPER 1: HOME MODULE (SCENE 1 & 9) ============
+// ==========================================================
+
+void drawHouse() {
+    // House base coordinates.
+    const float houseLeftX = 80.0f;      // Main house left edge
+    const float houseBottomY = 180.0f;   // Main house bottom edge
+    const float houseWidth = 380.0f;     // Main house width
+    const float houseHeight = 220.0f;    // Main house body height
+
+    const float garageLeftX = 110.0f;    // Garage left edge
+    const float garageBottomY = 180.0f;  // Garage floor level
+    const float garageWidth = 180.0f;    // Garage width
+    const float garageHeight = 120.0f;   // Garage body height
+
+    // House wall color changes at night.
+    if (houseNightMode) {
+        glColor3f(0.28f, 0.30f, 0.36f);
+    } else {
+        glColor3f(0.86f, 0.80f, 0.66f);
+    }
+    drawRectangle(houseLeftX, houseBottomY, houseWidth, houseHeight);
+
+    // Roof triangle.
+    if (houseNightMode) {
+        glColor3f(0.22f, 0.16f, 0.16f);
+    } else {
+        glColor3f(0.65f, 0.26f, 0.20f);
+    }
+    glBegin(GL_TRIANGLES);
+    glVertex2f(houseLeftX - 25.0f,              houseBottomY + houseHeight);       // Roof left corner
+    glVertex2f(houseLeftX + houseWidth + 25.0f, houseBottomY + houseHeight);       // Roof right corner
+    glVertex2f(houseLeftX + houseWidth * 0.5f,  houseBottomY + houseHeight + 110.0f); // Roof top peak
+    glEnd();
+
+    // Garage body.
+    if (houseNightMode) {
+        glColor3f(0.24f, 0.26f, 0.30f);
+    } else {
+        glColor3f(0.80f, 0.76f, 0.64f);
+    }
+    drawRectangle(garageLeftX, garageBottomY, garageWidth, garageHeight);
+
+    // Garage interior opening.
+    glColor3f(0.10f, 0.10f, 0.12f);
+    drawRectangle(garageLeftX + 12.0f, garageBottomY + 10.0f, garageWidth - 24.0f, garageHeight - 20.0f);
+
+    // Garage door that slides upward as open ratio increases.
+    const float garageDoorLeftX = garageLeftX + 12.0f;       // Door left edge
+    const float garageDoorBottomY = garageBottomY + 10.0f;   // Door bottom when fully closed
+    const float garageDoorWidth = garageWidth - 24.0f;       // Door width
+    const float garageDoorHeight = garageHeight - 20.0f;     // Door total height
+    const float visibleDoorHeight = garageDoorHeight * (1.0f - garageDoorOpenRatio_house); // Remaining visible part
+
+    if (visibleDoorHeight > 1.0f) {
+        if (houseNightMode) {
+            glColor3f(0.40f, 0.42f, 0.47f);
+        } else {
+            glColor3f(0.76f, 0.76f, 0.80f);
+        }
+        drawRectangle(
+            garageDoorLeftX,
+            garageDoorBottomY + (garageDoorHeight - visibleDoorHeight),
+            garageDoorWidth,
+            visibleDoorHeight
+        );
+    }
+
+    // Main house door.
+    if (houseNightMode) {
+        glColor3f(0.34f, 0.24f, 0.16f);
+    } else {
+        glColor3f(0.48f, 0.31f, 0.18f);
+    }
+    drawRectangle(houseLeftX + 255.0f, houseBottomY, 54.0f, 98.0f);
+
+    // Door knob.
+    glColor3f(0.88f, 0.74f, 0.24f);
+    drawFilledCircle(houseLeftX + 298.0f, houseBottomY + 46.0f, 3.0f, 18);
+
+    // Windows.
+    if (houseNightMode) {
+        glColor3f(0.98f, 0.90f, 0.56f); // Warm light in night scene
+    } else {
+        glColor3f(0.60f, 0.82f, 0.94f); // Day blue glass
+    }
+
+    drawRectangle(houseLeftX + 160.0f, houseBottomY + 130.0f, 72.0f, 56.0f); // Upper left window
+    drawRectangle(houseLeftX + 280.0f, houseBottomY + 130.0f, 72.0f, 56.0f); // Upper right window
+    drawRectangle(houseLeftX + 160.0f, houseBottomY + 40.0f, 72.0f, 56.0f);  // Lower left window
+
+    // Window frames.
+    glColor3f(0.42f, 0.32f, 0.20f);
+    drawRectangle(houseLeftX + 194.0f, houseBottomY + 130.0f, 4.0f, 56.0f);
+    drawRectangle(houseLeftX + 314.0f, houseBottomY + 130.0f, 4.0f, 56.0f);
+    drawRectangle(houseLeftX + 194.0f, houseBottomY + 40.0f, 4.0f, 56.0f);
+
+    // Driveway connecting garage to road.
+    glColor3f(0.45f, 0.45f, 0.48f);
+    glBegin(GL_POLYGON);
+    glVertex2f(garageLeftX + 22.0f, garageBottomY); // Driveway top-left at garage
+    glVertex2f(garageLeftX + garageWidth - 22.0f, garageBottomY); // Driveway top-right at garage
+    glVertex2f(320.0f, 120.0f); // Driveway bottom-right near road
+    glVertex2f(150.0f, 120.0f); // Driveway bottom-left near road
+    glEnd();
+
+    // Front lawn.
+    if (houseNightMode) {
+        glColor3f(0.14f, 0.22f, 0.16f);
+    } else {
+        glColor3f(0.26f, 0.56f, 0.28f);
+    }
+    drawRectangle(0.0f, 0.0f, 520.0f, 120.0f);
+}
+
+// ==========================================================
+// ====== DEVELOPER 2: TRAFFIC MODULE (SCENE 2 & 8) =========
+// ==========================================================
+
+// -----------------------------------------
+// SCENE 2: MORNING TRAFFIC
+// -----------------------------------------
+void drawScene2MorningTraffic() {
+    // Morning to afternoon bright blue sky.
+    drawVerticalSkyGradient(
+        0.44f, 0.74f, 0.95f, // Bottom sky color
+        0.68f, 0.89f, 0.99f  // Top sky color
+    );
+
+    drawSun(980.0f + sunHorizontalOffset * 0.35f, 610.0f);
+
+    // Clouds move slowly from left to right.
+    drawCloud(220.0f + cloudOffsetX_layerA, 610.0f);
+    drawCloud(560.0f + cloudOffsetX_layerB, 640.0f);
+    drawCloud(920.0f + cloudOffsetX_layerA * 0.8f, 600.0f);
+
+    // Parallax city: far buildings move slower than traffic cars.
+    drawParallaxCity(parallaxOffset_scene2, false);
+
+    // Configure road for this scene.
+    roadBottomY_current = 120.0f; // Road starts above grass strip
+    roadHeight_current = 220.0f;  // Tall multi-lane traffic road
+    roadLaneCount_current = 4;    // Four lanes for busy traffic
+    roadNightMode_current = false;
+    drawRoad();
+
+    // Foreground grass strip.
+    glColor3f(0.24f, 0.52f, 0.26f);
+    drawRectangle(0.0f, 0.0f, 1280.0f, 120.0f);
+
+    // Cars at different speeds and lane directions.
+    drawCar(trafficCarPositionX_scene2_A, 168.0f, 0.88f, 0.22f, 0.18f,
+            trafficCarWheelAngle_scene2_A, false, false, true);
+
+    drawCar(trafficCarPositionX_scene2_B, 230.0f, 0.20f, 0.50f, 0.86f,
+            trafficCarWheelAngle_scene2_B, false, false, false);
+
+    drawCar(trafficCarPositionX_scene2_C, 292.0f, 0.18f, 0.72f, 0.38f,
+            trafficCarWheelAngle_scene2_C, false, false, true);
+}
+
+// -----------------------------------------
+// SCENE 8: EVENING TRAFFIC
+// -----------------------------------------
+void drawScene8EveningTraffic() {
+    // Dark evening sky.
+    drawVerticalSkyGradient(
+        0.06f, 0.08f, 0.16f, // Bottom night blue
+        0.12f, 0.16f, 0.28f  // Top night blue
+    );
+
+    drawMoon(1060.0f, 618.0f);
+    drawStars();
+
+    // Night skyline with lit windows.
+    drawParallaxCity(parallaxOffset_scene8, true);
+
+    // Night road configuration.
+    roadBottomY_current = 110.0f;
+    roadHeight_current = 230.0f;
+    roadLaneCount_current = 4;
+    roadNightMode_current = true;
+    drawRoad();
+
+    // Grass foreground in night tone.
+    glColor3f(0.10f, 0.20f, 0.12f);
+    drawRectangle(0.0f, 0.0f, 1280.0f, 110.0f);
+
+    // Street lights on both sides with glow.
+    for (float poleX = 70.0f; poleX <= 1230.0f; poleX += 170.0f) {
+        drawStreetLight(poleX, 340.0f, true);
+    }
+
+    // Night traffic with headlights and taillights.
+    drawCar(trafficCarPositionX_scene8_A, 160.0f, 0.80f, 0.26f, 0.20f,
+            trafficCarWheelAngle_scene8_A, true, true, true);
+
+    drawCar(trafficCarPositionX_scene8_B, 230.0f, 0.20f, 0.52f, 0.84f,
+            trafficCarWheelAngle_scene8_B, true, true, false);
+
+    drawCar(trafficCarPositionX_scene8_C, 300.0f, 0.30f, 0.72f, 0.44f,
+            trafficCarWheelAngle_scene8_C, true, true, true);
+}
+
+// ==========================================================
+// ====== DEVELOPER 3: OFFICE EXTERIOR MODULE (3 & 7) =======
+// ==========================================================
+
+void drawOfficeComplex(bool eveningLightingEnabled) {
+    const float officeLeftX = 690.0f;    // Office building left edge
+    const float officeBottomY = 190.0f;  // Office building ground Y
+    const float officeWidth = 470.0f;    // Office width
+    const float officeHeight = 360.0f;   // Office height
+
+    if (eveningLightingEnabled) {
+        glColor3f(0.22f, 0.24f, 0.32f);
+    } else {
+        glColor3f(0.56f, 0.62f, 0.72f);
+    }
+    drawRectangle(officeLeftX, officeBottomY, officeWidth, officeHeight);
+
+    // Glass front section.
+    if (eveningLightingEnabled) {
+        glColor3f(0.20f, 0.28f, 0.38f);
+    } else {
+        glColor3f(0.44f, 0.66f, 0.86f);
+    }
+    drawRectangle(officeLeftX + 36.0f, officeBottomY + 56.0f, officeWidth - 72.0f, officeHeight - 120.0f);
+
+    // Window grid lines.
+    glColor3f(0.30f, 0.34f, 0.40f);
+    glLineWidth(1.0f);
+    glBegin(GL_LINES);
+    for (float verticalX = officeLeftX + 74.0f; verticalX <= officeLeftX + officeWidth - 74.0f; verticalX += 42.0f) {
+        glVertex2f(verticalX, officeBottomY + 56.0f);
+        glVertex2f(verticalX, officeBottomY + officeHeight - 64.0f);
+    }
+    for (float horizontalY = officeBottomY + 90.0f; horizontalY <= officeBottomY + officeHeight - 70.0f; horizontalY += 36.0f) {
+        glVertex2f(officeLeftX + 36.0f, horizontalY);
+        glVertex2f(officeLeftX + officeWidth - 36.0f, horizontalY);
+    }
+    glEnd();
+
+    // Office entrance.
+    glColor3f(0.18f, 0.20f, 0.24f);
+    drawRectangle(officeLeftX + 192.0f, officeBottomY, 86.0f, 132.0f);
+
+    if (eveningLightingEnabled) {
+        glColor3f(0.98f, 0.90f, 0.56f);
+    } else {
+        glColor3f(0.82f, 0.90f, 0.96f);
+    }
+    drawRectangle(officeLeftX + 204.0f, officeBottomY + 14.0f, 28.0f, 106.0f);
+    drawRectangle(officeLeftX + 238.0f, officeBottomY + 14.0f, 28.0f, 106.0f);
+
+    // Company sign board.
+    glColor3f(0.14f, 0.16f, 0.26f);
+    drawRectangle(officeLeftX + 136.0f, officeBottomY + officeHeight + 12.0f, 198.0f, 34.0f);
+
+    glColor3f(1.0f, 1.0f, 1.0f);
+    drawBitmapText(officeLeftX + 150.0f, officeBottomY + officeHeight + 34.0f, "URBAN TECH OFFICE");
+
+    // Parking lot surface.
+    if (eveningLightingEnabled) {
+        glColor3f(0.16f, 0.16f, 0.18f);
+    } else {
+        glColor3f(0.34f, 0.34f, 0.37f);
+    }
+    drawRectangle(420.0f, 120.0f, 860.0f, 70.0f);
+}
+
+void drawOfficeRampDown() {
+    // Downward ramp used during office arrival.
+    glColor3f(0.40f, 0.40f, 0.43f);
+    glBegin(GL_POLYGON);
+    glVertex2f(480.0f, 290.0f); // Ramp top-left on main road
+    glVertex2f(760.0f, 290.0f); // Ramp top-right on main road
+    glVertex2f(860.0f, 170.0f); // Ramp bottom-right in parking area
+    glVertex2f(580.0f, 170.0f); // Ramp bottom-left in parking area
+    glEnd();
+}
+
+void drawOfficeRampUp() {
+    // Upward ramp used during leaving office scene.
+    glColor3f(0.40f, 0.40f, 0.43f);
+    glBegin(GL_POLYGON);
+    glVertex2f(580.0f, 170.0f); // Ramp bottom-left near parking lot
+    glVertex2f(860.0f, 170.0f); // Ramp bottom-right near parking lot
+    glVertex2f(760.0f, 290.0f); // Ramp top-right near road
+    glVertex2f(480.0f, 290.0f); // Ramp top-left near road
+    glEnd();
+}
+
+void drawParkingBarrier(float pivotX, float pivotY, float rotationAngleDegrees) {
+    // Barrier stand.
+    glColor3f(0.30f, 0.30f, 0.34f);
+    drawRectangle(pivotX - 14.0f, pivotY - 58.0f, 28.0f, 58.0f);
+
+    glPushMatrix();
+    glTranslatef(pivotX, pivotY, 0.0f);               // Pivot where barrier rotates
+    glRotatef(rotationAngleDegrees, 0.0f, 0.0f, 1.0f);
+
+    // Barrier arm extends left when closed.
+    glColor3f(0.90f, 0.90f, 0.92f);
+    drawRectangle(-170.0f, -6.0f, 170.0f, 12.0f);
+
+    // Red safety strips.
+    glColor3f(0.88f, 0.14f, 0.14f);
+    drawRectangle(-154.0f, -6.0f, 18.0f, 12.0f);
+    drawRectangle(-116.0f, -6.0f, 18.0f, 12.0f);
+    drawRectangle( -78.0f, -6.0f, 18.0f, 12.0f);
+    drawRectangle( -40.0f, -6.0f, 18.0f, 12.0f);
+
+    glPopMatrix();
+}
+
+// -----------------------------------------
+// SCENE 3: OFFICE ARRIVAL
+// -----------------------------------------
+void drawScene3OfficeArrival() {
+    // Afternoon sky.
+    drawVerticalSkyGradient(
+        0.48f, 0.72f, 0.92f, // Bottom sky color
+        0.70f, 0.86f, 0.98f  // Top sky color
+    );
+
+    drawSun(1090.0f + sunHorizontalOffset * 0.22f, 610.0f);
+
+    // Clouds are visible in early daytime scenes (1 to 3).
+    drawCloud(230.0f + cloudOffsetX_layerA * 0.7f, 598.0f);
+    drawCloud(640.0f + cloudOffsetX_layerB * 0.7f, 632.0f);
+
+    // Distant city behind office.
+    drawParallaxCity(parallaxOffset_scene2 * 0.4f, false);
+
+    // Main road before ramp.
+    roadBottomY_current = 250.0f;
+    roadHeight_current = 90.0f;
+    roadLaneCount_current = 2;
+    roadNightMode_current = false;
+    drawRoad();
+
+    drawOfficeRampDown();
+    drawOfficeComplex(false);
+
+    // Barrier opens as car approaches.
+    drawParkingBarrier(860.0f, 170.0f, barrierRotationAngle_scene3);
+
+    // Arrival car moving down the ramp.
+    drawCar(carPositionX_scene3, carPositionY_scene3, 0.86f, 0.24f, 0.20f,
+            wheelRotationAngle_scene3, false, false, true);
+}
+
+// -----------------------------------------
+// SCENE 7: LEAVING OFFICE
+// -----------------------------------------
+void drawScene7LeavingOffice() {
+    // Evening sky with warm tone.
+    drawVerticalSkyGradient(
+        0.34f, 0.24f, 0.32f, // Bottom evening color
+        0.92f, 0.60f, 0.34f  // Top sunset color
+    );
+
+    drawSun(180.0f + sunHorizontalOffset * 0.25f, 580.0f);
+
+    drawOfficeComplex(true);
+    drawOfficeRampUp();
+
+    // Main road after ramp.
+    roadBottomY_current = 250.0f;
+    roadHeight_current = 90.0f;
+    roadLaneCount_current = 2;
+    roadNightMode_current = false;
+    drawRoad();
+
+    // Barrier opens for exit.
+    drawParkingBarrier(860.0f, 170.0f, barrierRotationAngle_scene7);
+
+    // Leaving car with headlights on due evening light.
+    drawCar(carPositionX_scene7, carPositionY_scene7, 0.86f, 0.24f, 0.20f,
+            wheelRotationAngle_scene7, true, false, true);
+}
+
+// ==========================================================
+// ====== DEVELOPER 4: OFFICE INTERIOR MODULE (4,5,6) =======
+// ==========================================================
+
+// -----------------------------------------
+// SCENE 4: MAIN OFFICE
+// -----------------------------------------
+void drawScene4MainOffice() {
+    // Indoor office background.
+    drawVerticalSkyGradient(
+        0.78f, 0.80f, 0.86f, // Floor-side tint
+        0.94f, 0.96f, 0.99f  // Ceiling-side tint
+    );
+
+    // Back wall and floor.
+    glColor3f(0.92f, 0.94f, 0.97f);
+    drawRectangle(0.0f, 180.0f, 1280.0f, 540.0f);
+    glColor3f(0.68f, 0.66f, 0.62f);
+    drawRectangle(0.0f, 0.0f, 1280.0f, 180.0f);
+
+    // Office window strip.
+    glColor3f(0.60f, 0.78f, 0.90f);
+    drawRectangle(70.0f, 420.0f, 440.0f, 210.0f);
+
+    glColor3f(0.36f, 0.42f, 0.48f);
+    drawRectangle(282.0f, 420.0f, 6.0f, 210.0f); // Window vertical frame
+    drawRectangle(70.0f, 520.0f, 440.0f, 6.0f);  // Window horizontal frame
+
+    // Ceiling fan.
+    drawFan(740.0f, 700.0f);
+
+    // Wall clock with moving hand.
+    drawWallClock(1140.0f, 610.0f, wallClockHandAngle_scene4);
+
+    // Main desk and chair.
+    drawOfficeDeskSetup(380.0f, 160.0f);
+
+    // Main office worker sitting and typing.
+    characterFacingRight = true;
+    characterSittingPose = true;
+    characterCarryBriefcase = false;
+    characterPointingPose = false;
+
+    characterLeftArmAngleDegrees = -32.0f - typingArmAngle_scene4 * 0.4f;
+    characterRightArmAngleDegrees = -20.0f + typingArmAngle_scene4;
+    characterLegSwingAngleDegrees = 0.0f;
+
+    drawCharacter(438.0f, 170.0f);
+
+    // Two background workers moving left-right.
+    characterSittingPose = false;
+    characterCarryBriefcase = false;
+    characterPointingPose = false;
+
+    characterLeftArmAngleDegrees = -8.0f;
+    characterRightArmAngleDegrees = 12.0f;
+    characterLegSwingAngleDegrees = 8.0f;
+    drawCharacter(workerPositionX_scene4_A, 190.0f);
+
+    characterFacingRight = false;
+    characterLeftArmAngleDegrees = 10.0f;
+    characterRightArmAngleDegrees = -12.0f;
+    characterLegSwingAngleDegrees = -8.0f;
+    drawCharacter(workerPositionX_scene4_B, 190.0f);
+
+    // Reset pose defaults.
+    characterFacingRight = true;
+    characterSittingPose = false;
+}
+
+// -----------------------------------------
+// SCENE 5: COFFEE BREAK
+// -----------------------------------------
+void drawScene5CoffeeBreak() {
+    // Indoor break area background.
+    drawVerticalSkyGradient(
+        0.80f, 0.82f, 0.88f,
+        0.95f, 0.96f, 0.98f
+    );
+
+    glColor3f(0.90f, 0.92f, 0.95f);
+    drawRectangle(0.0f, 170.0f, 1280.0f, 550.0f); // Wall
+
+    glColor3f(0.70f, 0.68f, 0.64f);
+    drawRectangle(0.0f, 0.0f, 1280.0f, 170.0f); // Floor
+
+    // Pantry counter.
+    glColor3f(0.58f, 0.44f, 0.28f);
+    drawRectangle(760.0f, 170.0f, 420.0f, 100.0f);
+
+    // Coffee machine and steam.
+    drawCoffeeMachine(950.0f, 220.0f);
+    drawSteamParticles();
+
+    // Worker walking toward coffee machine.
+    characterFacingRight = true;
+    characterSittingPose = false;
+    characterCarryBriefcase = false;
+    characterPointingPose = false;
+
+    characterLegSwingAngleDegrees = workerWalkLegSwing_scene5;
+    characterLeftArmAngleDegrees = -workerWalkLegSwing_scene5 * 0.8f;
+    characterRightArmAngleDegrees = workerWalkLegSwing_scene5 * 0.8f;
+
+    drawCharacter(workerWalkPositionX_scene5, 172.0f);
+}
+
+// -----------------------------------------
+// SCENE 6: PRESENTATION
+// -----------------------------------------
+void drawScene6Presentation() {
+    // Presentation room background.
+    drawVerticalSkyGradient(
+        0.74f, 0.78f, 0.84f,
+        0.92f, 0.94f, 0.97f
+    );
+
+    glColor3f(0.90f, 0.93f, 0.96f);
+    drawRectangle(0.0f, 150.0f, 1280.0f, 570.0f); // Wall
+
+    glColor3f(0.62f, 0.60f, 0.56f);
+    drawRectangle(0.0f, 0.0f, 1280.0f, 150.0f); // Floor
+
+    // Presentation board with animated bar chart.
+    drawPresentationBoard(650.0f, 220.0f, 500.0f, 360.0f);
+
+    // Presenter character near board.
+    characterFacingRight = true;
+    characterSittingPose = false;
+    characterCarryBriefcase = false;
+    characterPointingPose = true;
+
+    characterLegSwingAngleDegrees = 0.0f;
+    characterLeftArmAngleDegrees = 5.0f;
+    characterRightArmAngleDegrees = -48.0f;
+
+    drawCharacter(540.0f, 150.0f);
+
+    // Pointer line from hand to board.
+    glColor3f(0.20f, 0.16f, 0.10f);
+    glLineWidth(2.0f);
+    glBegin(GL_LINES);
+    glVertex2f(560.0f, 250.0f); // Pointer handle near character hand
+    glVertex2f(760.0f, 370.0f); // Pointer tip on board chart
+    glEnd();
+    glLineWidth(1.0f);
+
+    // Small audience silhouettes.
+    characterPointingPose = false;
+    characterFacingRight = true;
+    characterLeftArmAngleDegrees = 0.0f;
+    characterRightArmAngleDegrees = 0.0f;
+    characterLegSwingAngleDegrees = 0.0f;
+
+    drawCharacter(220.0f, 150.0f);
+    drawCharacter(300.0f, 150.0f);
+    drawCharacter(380.0f, 150.0f);
+}
+
+// ==========================================================
+// ====== SCENE 1 and SCENE 9 RENDER FUNCTIONS ==============
+// ==========================================================
+
+// -----------------------------------------
+// SCENE 1: MORNING HOME DEPARTURE
+// -----------------------------------------
+void drawScene1MorningHomeDeparture() {
+    // Morning sky.
+    drawVerticalSkyGradient(
+        0.62f, 0.84f, 0.97f, // Bottom sky color
+        0.83f, 0.94f, 0.99f  // Top sky color
+    );
+
+    drawSun(1020.0f + sunHorizontalOffset * 0.30f, 612.0f);
+
+    // Clouds in first three scenes.
+    drawCloud(220.0f + cloudOffsetX_layerA, 620.0f);
+    drawCloud(560.0f + cloudOffsetX_layerB, 648.0f);
+    drawCloud(940.0f + cloudOffsetX_layerA * 0.9f, 608.0f);
+
+    // Distant city in background.
+    drawParallaxCity(0.0f, false);
+
+    // Home road and lawn.
+    roadBottomY_current = 120.0f;
+    roadHeight_current = 130.0f;
+    roadLaneCount_current = 2;
+    roadNightMode_current = false;
+    drawRoad();
+
+    // Draw reusable house with animated garage door ratio.
+    houseNightMode = false;
+    drawHouse();
+
+    // Main car leaves home.
+    drawCar(carPositionX_scene1, carPositionY_scene1, 0.84f, 0.20f, 0.18f,
+            wheelRotationAngle_scene1, false, false, true);
+}
+
+// -----------------------------------------
+// SCENE 9: RETURN HOME
+// -----------------------------------------
+void drawScene9ReturnHome() {
+    // Night sky.
+    drawVerticalSkyGradient(
+        0.05f, 0.07f, 0.15f, // Bottom night color
+        0.10f, 0.14f, 0.25f  // Top night color
+    );
+
+    drawMoon(1030.0f, 620.0f);
+    drawStars();
+
+    // Optional slow clouds at night.
+    drawCloud(260.0f + cloudOffsetX_layerA * 0.4f, 600.0f);
+    drawCloud(720.0f + cloudOffsetX_layerB * 0.4f, 640.0f);
+
+    // Home road.
+    roadBottomY_current = 120.0f;
+    roadHeight_current = 130.0f;
+    roadLaneCount_current = 2;
+    roadNightMode_current = true;
+    drawRoad();
+
+    // Reuse same house model, but in night mode.
+    houseNightMode = true;
+    garageDoorOpenRatio_house = garageDoorOpenRatio_scene9;
+    drawHouse();
+
+    // Returning car parks inside garage with smooth stop.
+    drawCar(carPositionX_scene9, carPositionY_scene9, 0.84f, 0.20f, 0.18f,
+            wheelRotationAngle_scene9, true, false, false);
+}
+
+// ==========================================================
+// ====== SCENE UPDATE LOGIC (PER SCENE) ====================
+// ==========================================================
+
+void initializeSteamParticles() {
+    const float steamNozzleCenterX = 992.0f; // Nozzle center X at coffee machine
+    const float steamStartY = 292.0f;        // Steam starts just above cup
+
+    for (int index = 0; index < STEAM_PARTICLE_COUNT; ++index) {
+        const int repeatingColumn = index % 5;
+
+        coffeeSteamParticles[index].particleX = steamNozzleCenterX + (repeatingColumn - 2) * 6.0f;
+        coffeeSteamParticles[index].particleY = steamStartY + static_cast<float>(index) * 6.0f;
+        coffeeSteamParticles[index].verticalSpeed = 0.55f + static_cast<float>(index % 4) * 0.16f;
+        coffeeSteamParticles[index].alphaValue = 0.40f + static_cast<float>(index % 6) * 0.08f;
+    }
+}
+
+void updateScene1Animation() {
+    // Open garage first, then move car forward.
+    const int garageOpeningDurationFrames = 90;
+    if (sceneFrameCounter <= garageOpeningDurationFrames) {
+        garageDoorOpenRatio_house = clampFloat(
+            static_cast<float>(sceneFrameCounter) / static_cast<float>(garageOpeningDurationFrames),
+            0.0f,
+            1.0f
+        );
+    }
+
+    const int carMoveStartFrame = 55;
+    const float carSpeedPerFrame = 2.7f;
+
+    if (sceneFrameCounter > carMoveStartFrame && carPositionX_scene1 < 700.0f) {
+        carPositionX_scene1 += carSpeedPerFrame;
+        wheelRotationAngle_scene1 -= carSpeedPerFrame * 4.2f;
+    }
+}
+
+void updateScene2Animation() {
+    const float speedCarA = 3.2f; // Car A rightward speed
+    const float speedCarB = 2.4f; // Car B leftward speed
+    const float speedCarC = 4.1f; // Car C rightward speed
+
+    trafficCarPositionX_scene2_A += speedCarA;
+    trafficCarPositionX_scene2_B -= speedCarB;
+    trafficCarPositionX_scene2_C += speedCarC;
+
+    if (trafficCarPositionX_scene2_A > 1440.0f) {
+        trafficCarPositionX_scene2_A = -220.0f;
+    }
+    if (trafficCarPositionX_scene2_B < -220.0f) {
+        trafficCarPositionX_scene2_B = 1440.0f;
+    }
+    if (trafficCarPositionX_scene2_C > 1500.0f) {
+        trafficCarPositionX_scene2_C = -360.0f;
+    }
+
+    trafficCarWheelAngle_scene2_A -= speedCarA * 4.0f;
+    trafficCarWheelAngle_scene2_B -= speedCarB * 4.0f;
+    trafficCarWheelAngle_scene2_C -= speedCarC * 4.0f;
+
+    // Parallax offset update: far city motion slower than car speed.
+    parallaxOffset_scene2 -= 0.8f;
+    if (parallaxOffset_scene2 < -220.0f) {
+        parallaxOffset_scene2 += 220.0f;
+    }
+}
+
+void updateScene3Animation() {
+    const float carSpeedPerFrame = 2.8f;
+    const float rampStartX = 520.0f; // Car starts descending after this X
+    const float rampSlope = 0.38f;   // Y drop per X unit on downward ramp
+
+    if (carPositionX_scene3 < 930.0f) {
+        carPositionX_scene3 += carSpeedPerFrame;
+        wheelRotationAngle_scene3 -= carSpeedPerFrame * 4.1f;
+    }
+
+    if (carPositionX_scene3 < rampStartX) {
+        carPositionY_scene3 = 286.0f; // Before ramp: stay on upper road level
+    } else {
+        const float descentAmount = (carPositionX_scene3 - rampStartX) * rampSlope;
+        carPositionY_scene3 = 286.0f - descentAmount;
+        carPositionY_scene3 = clampFloat(carPositionY_scene3, 170.0f, 286.0f);
+    }
+
+    // Open barrier when car gets close.
+    if (carPositionX_scene3 > 700.0f) {
+        barrierRotationAngle_scene3 += 2.4f;
+        barrierRotationAngle_scene3 = clampFloat(barrierRotationAngle_scene3, 0.0f, 85.0f);
+    }
+}
+
+void updateScene4Animation() {
+    // Typing animation by oscillating arm angle.
+    typingArmAngle_scene4 = std::sin(static_cast<float>(sceneFrameCounter) * 0.32f) * 16.0f;
+
+    // Rotating fan.
+    fanRotationAngle_scene4 += 14.0f;
+    if (fanRotationAngle_scene4 > 360.0f) {
+        fanRotationAngle_scene4 -= 360.0f;
+    }
+
+    // Clock minute hand rotates continuously.
+    wallClockHandAngle_scene4 -= 1.6f;
+    if (wallClockHandAngle_scene4 < -360.0f) {
+        wallClockHandAngle_scene4 += 360.0f;
+    }
+
+    // Workers pacing left-right.
+    workerPositionX_scene4_A += workerDirection_scene4_A * 1.2f;
+    if (workerPositionX_scene4_A > 940.0f || workerPositionX_scene4_A < 760.0f) {
+        workerDirection_scene4_A *= -1.0f;
+    }
+
+    workerPositionX_scene4_B += workerDirection_scene4_B * 1.0f;
+    if (workerPositionX_scene4_B > 1080.0f || workerPositionX_scene4_B < 860.0f) {
+        workerDirection_scene4_B *= -1.0f;
+    }
+}
+
+void updateScene5Animation() {
+    // Worker walks to coffee machine then slows near it.
+    if (workerWalkPositionX_scene5 < 830.0f) {
+        workerWalkPositionX_scene5 += 1.6f;
+        workerWalkLegSwing_scene5 = std::sin(static_cast<float>(sceneFrameCounter) * 0.32f) * 18.0f;
+    } else {
+        workerWalkPositionX_scene5 = 830.0f;
+        workerWalkLegSwing_scene5 = 2.0f * std::sin(static_cast<float>(sceneFrameCounter) * 0.12f);
+    }
+
+    // Steam particles: move up and fade out, then reset.
+    const float steamNozzleCenterX = 992.0f;
+    const float steamResetY = 292.0f;
+
+    for (int particleIndex = 0; particleIndex < STEAM_PARTICLE_COUNT; ++particleIndex) {
+        SteamParticle& particle = coffeeSteamParticles[particleIndex];
+
+        particle.particleY += particle.verticalSpeed;
+        particle.particleX += std::sin(starTwinkleCounter * 0.5f + particleIndex) * 0.18f;
+        particle.alphaValue -= 0.006f;
+
+        if (particle.particleY > 430.0f || particle.alphaValue <= 0.02f) {
+            const int repeatingColumn = particleIndex % 5;
+            particle.particleX = steamNozzleCenterX + (repeatingColumn - 2) * 6.0f;
+            particle.particleY = steamResetY + static_cast<float>(particleIndex % 6) * 4.0f;
+            particle.alphaValue = 0.82f;
+        }
+    }
+}
+
+void updateScene6Animation() {
+    // Grow bar chart gradually.
+    presentationBarGrowRatio_scene6 += 0.007f;
+    presentationBarGrowRatio_scene6 = clampFloat(presentationBarGrowRatio_scene6, 0.0f, 1.0f);
+
+    // Small pointer oscillation keeps presenter dynamic.
+    pointerOscillationAngle_scene6 = std::sin(static_cast<float>(sceneFrameCounter) * 0.15f) * 6.0f;
+}
+
+void updateScene7Animation() {
+    const float carSpeedPerFrame = 2.9f;
+    const float rampStartX = 580.0f; // Start moving up ramp after this X
+    const float rampSlope = 0.34f;   // Y rise per X unit on upward ramp
+
+    if (carPositionX_scene7 < 1320.0f) {
+        carPositionX_scene7 += carSpeedPerFrame;
+        wheelRotationAngle_scene7 -= carSpeedPerFrame * 4.1f;
+    }
+
+    if (carPositionX_scene7 < rampStartX) {
+        carPositionY_scene7 = 170.0f; // Parking level before ramp
+    } else {
+        const float riseAmount = (carPositionX_scene7 - rampStartX) * rampSlope;
+        carPositionY_scene7 = 170.0f + riseAmount;
+        carPositionY_scene7 = clampFloat(carPositionY_scene7, 170.0f, 286.0f);
+    }
+
+    // Open barrier while car exits.
+    if (carPositionX_scene7 > 700.0f) {
+        barrierRotationAngle_scene7 += 2.6f;
+        barrierRotationAngle_scene7 = clampFloat(barrierRotationAngle_scene7, 0.0f, 85.0f);
+    }
+}
+
+void updateScene8Animation() {
+    const float speedCarA = 3.6f;
+    const float speedCarB = 2.7f;
+    const float speedCarC = 4.3f;
+
+    trafficCarPositionX_scene8_A += speedCarA;
+    trafficCarPositionX_scene8_B -= speedCarB;
+    trafficCarPositionX_scene8_C += speedCarC;
+
+    if (trafficCarPositionX_scene8_A > 1460.0f) {
+        trafficCarPositionX_scene8_A = -260.0f;
+    }
+    if (trafficCarPositionX_scene8_B < -260.0f) {
+        trafficCarPositionX_scene8_B = 1460.0f;
+    }
+    if (trafficCarPositionX_scene8_C > 1540.0f) {
+        trafficCarPositionX_scene8_C = -520.0f;
+    }
+
+    trafficCarWheelAngle_scene8_A -= speedCarA * 4.0f;
+    trafficCarWheelAngle_scene8_B -= speedCarB * 4.0f;
+    trafficCarWheelAngle_scene8_C -= speedCarC * 4.0f;
+
+    parallaxOffset_scene8 -= 0.65f;
+    if (parallaxOffset_scene8 < -220.0f) {
+        parallaxOffset_scene8 += 220.0f;
+    }
+}
+
+void updateScene9Animation() {
+    // Open garage while car approaches.
+    if (carPositionX_scene9 < 760.0f) {
+        garageDoorOpenRatio_scene9 = (760.0f - carPositionX_scene9) / 260.0f;
+        garageDoorOpenRatio_scene9 = clampFloat(garageDoorOpenRatio_scene9, 0.0f, 1.0f);
+    }
+
+    // Smooth stop near garage parking position.
+    const float finalParkingX = 260.0f; // Final parked X inside garage
+    if (carPositionX_scene9 > finalParkingX) {
+        const float remainingDistance = carPositionX_scene9 - finalParkingX;
+        const float normalizedDistance = clampFloat(remainingDistance / 700.0f, 0.0f, 1.0f);
+
+        // Speed decreases as remaining distance becomes smaller.
+        carSpeed_scene9 = 0.8f + 3.0f * normalizedDistance;
+        carPositionX_scene9 -= carSpeed_scene9;
+        wheelRotationAngle_scene9 -= carSpeed_scene9 * 4.0f;
+
+        if (carPositionX_scene9 < finalParkingX) {
+            carPositionX_scene9 = finalParkingX;
+        }
+    }
+}
+
+// ==========================================================
+// ====== SCENE RESET AND TRANSITION ========================
+// ==========================================================
+
+void resetVariablesForScene(int sceneIndex) {
+    // Reset variables each time scene changes, to keep behavior deterministic.
+    if (sceneIndex == 1) {
+        carPositionX_scene1 = 220.0f;
+        carPositionY_scene1 = 178.0f;
+        wheelRotationAngle_scene1 = 0.0f;
+        garageDoorOpenRatio_house = 0.0f;
+    }
+
+    if (sceneIndex == 2) {
+        trafficCarPositionX_scene2_A = -180.0f;
+        trafficCarPositionX_scene2_B = 1350.0f;
+        trafficCarPositionX_scene2_C = -420.0f;
+
+        trafficCarWheelAngle_scene2_A = 0.0f;
+        trafficCarWheelAngle_scene2_B = 0.0f;
+        trafficCarWheelAngle_scene2_C = 0.0f;
+
+        parallaxOffset_scene2 = 0.0f;
+    }
+
+    if (sceneIndex == 3) {
+        carPositionX_scene3 = -220.0f;
+        carPositionY_scene3 = 286.0f;
+        wheelRotationAngle_scene3 = 0.0f;
+        barrierRotationAngle_scene3 = 0.0f;
+    }
+
+    if (sceneIndex == 4) {
+        typingArmAngle_scene4 = 0.0f;
+        fanRotationAngle_scene4 = 0.0f;
+        wallClockHandAngle_scene4 = 90.0f;
+
+        workerPositionX_scene4_A = 800.0f;
+        workerPositionX_scene4_B = 980.0f;
+        workerDirection_scene4_A = 1.0f;
+        workerDirection_scene4_B = -1.0f;
+    }
+
+    if (sceneIndex == 5) {
+        workerWalkPositionX_scene5 = 250.0f;
+        workerWalkLegSwing_scene5 = 0.0f;
+        initializeSteamParticles();
+    }
+
+    if (sceneIndex == 6) {
+        presentationBarGrowRatio_scene6 = 0.0f;
+        pointerOscillationAngle_scene6 = 0.0f;
+    }
+
+    if (sceneIndex == 7) {
+        carPositionX_scene7 = 520.0f;
+        carPositionY_scene7 = 170.0f;
+        wheelRotationAngle_scene7 = 0.0f;
+        barrierRotationAngle_scene7 = 0.0f;
+    }
+
+    if (sceneIndex == 8) {
+        trafficCarPositionX_scene8_A = -260.0f;
+        trafficCarPositionX_scene8_B = 1380.0f;
+        trafficCarPositionX_scene8_C = -560.0f;
+
+        trafficCarWheelAngle_scene8_A = 0.0f;
+        trafficCarWheelAngle_scene8_B = 0.0f;
+        trafficCarWheelAngle_scene8_C = 0.0f;
+
+        parallaxOffset_scene8 = 0.0f;
+    }
+
+    if (sceneIndex == 9) {
+        carPositionX_scene9 = 1450.0f;
+        carPositionY_scene9 = 178.0f;
+        wheelRotationAngle_scene9 = 0.0f;
+        carSpeed_scene9 = 3.8f;
+        garageDoorOpenRatio_scene9 = 0.0f;
+    }
+}
+
+void moveToNextScene() {
+    currentScene += 1;
+    if (currentScene > LAST_SCENE_INDEX) {
+        currentScene = FIRST_SCENE_INDEX; // Loop back to scene 1 after scene 9
+    }
+
+    sceneFrameCounter = 0;
+    resetVariablesForScene(currentScene);
+}
+
+// ==========================================================
+// ====== GLUT CALLBACKS ====================================
+// ==========================================================
+
+void reshape(int newWidth, int newHeight) {
+    if (newHeight <= 0) {
+        newHeight = 1;
+    }
+
+    const float currentAspect = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+
+    int viewportX = 0;
+    int viewportY = 0;
+    int viewportWidth = newWidth;
+    int viewportHeight = newHeight;
+
+    // Keep 16:9 using letterbox/pillarbox viewport.
+    if (currentAspect > TARGET_ASPECT) {
+        viewportWidth = static_cast<int>(static_cast<float>(newHeight) * TARGET_ASPECT);
+        viewportX = (newWidth - viewportWidth) / 2;
+    } else if (currentAspect < TARGET_ASPECT) {
+        viewportHeight = static_cast<int>(static_cast<float>(newWidth) / TARGET_ASPECT);
+        viewportY = (newHeight - viewportHeight) / 2;
+    }
+
+    glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluOrtho2D(ORTHO_LEFT_X, ORTHO_RIGHT_X, ORTHO_BOTTOM_Y, ORTHO_TOP_Y);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+}
+
+void display() {
+    // Time-of-day clear color system (required for realism and viva explanation).
+    if (currentScene == 1 || currentScene == 2) {
+        glClearColor(0.62f, 0.84f, 0.97f, 1.0f); // Morning light blue
+    } else if (currentScene >= 3 && currentScene <= 6) {
+        glClearColor(0.52f, 0.74f, 0.94f, 1.0f); // Afternoon bright blue
+    } else if (currentScene == 7) {
+        glClearColor(0.60f, 0.40f, 0.30f, 1.0f); // Evening orange-purple tone
+    } else {
+        glClearColor(0.05f, 0.07f, 0.15f, 1.0f); // Night dark blue
+    }
+
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    // Scene state machine.
+    switch (currentScene) {
+        case 1: drawScene1MorningHomeDeparture(); break;
+        case 2: drawScene2MorningTraffic(); break;
+        case 3: drawScene3OfficeArrival(); break;
+        case 4: drawScene4MainOffice(); break;
+        case 5: drawScene5CoffeeBreak(); break;
+        case 6: drawScene6Presentation(); break;
+        case 7: drawScene7LeavingOffice(); break;
+        case 8: drawScene8EveningTraffic(); break;
+        case 9: drawScene9ReturnHome(); break;
+        default: drawScene1MorningHomeDeparture(); break;
+    }
+
+    drawTextIfNeeded();
+
+    // Smooth fade transition overlay.
+    if (fadeOverlayAlpha > 0.001f) {
+        // Alpha increases to create fade-out, then decreases for fade-in.
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glColor4f(0.0f, 0.0f, 0.0f, fadeOverlayAlpha);
+        drawRectangle(0.0f, 0.0f, 1280.0f, 720.0f);
+
+        glDisable(GL_BLEND);
+    }
+
     glutSwapBuffers();
 }
 
-static void key(unsigned char k, int, int) {
-    switch (k) {
-        case 27: case 'q': case 'Q': std::exit(0); break;
-        case '1':
-            currentScene = 1;
-            gHomeEnvironment.resetMorningSequence();
-            gCameraInitialized = false;
-            break;
-        case '9': currentScene = 9; break;
-        case 'r': case 'R':
-            currentScene = 1;
-            gHomeEnvironment.resetMorningSequence();
-            gCameraInitialized = false;
-            break;
-        case 'c': case 'C':
-            gFollowCamera = !gFollowCamera;
-            gCameraInitialized = false;
-            break;
+void update(int value) {
+    // Shared environment updates.
+    cloudOffsetX_layerA += 0.32f;
+    cloudOffsetX_layerB += 0.22f;
+    sunHorizontalOffset += 0.18f;
+    starTwinkleCounter += 0.06f;
+
+    cloudOffsetX_layerA = wrapOffsetToRange(cloudOffsetX_layerA, -260.0f, 1320.0f);
+    cloudOffsetX_layerB = wrapOffsetToRange(cloudOffsetX_layerB, -360.0f, 1320.0f);
+
+    if (sunHorizontalOffset > 220.0f) {
+        sunHorizontalOffset = -220.0f;
+    }
+
+    // Update active scene animation.
+    switch (currentScene) {
+        case 1: updateScene1Animation(); break;
+        case 2: updateScene2Animation(); break;
+        case 3: updateScene3Animation(); break;
+        case 4: updateScene4Animation(); break;
+        case 5: updateScene5Animation(); break;
+        case 6: updateScene6Animation(); break;
+        case 7: updateScene7Animation(); break;
+        case 8: updateScene8Animation(); break;
+        case 9: updateScene9Animation(); break;
         default: break;
     }
+
+    // Advance local frame counter while not transitioning.
+    if (!isSceneTransitionActive) {
+        sceneFrameCounter += 1;
+    }
+
+    // Trigger transition near scene end.
+    if (!isSceneTransitionActive) {
+        const int fadeTriggerFrame = sceneDurationFrameCount[currentScene] - FADE_START_BEFORE_END_FRAMES;
+        if (sceneFrameCounter >= fadeTriggerFrame) {
+            isSceneTransitionActive = true;
+            isFadeOutPhase = true;
+        }
+    }
+
+    // Fade engine.
+    if (isSceneTransitionActive) {
+        if (isFadeOutPhase) {
+            fadeOverlayAlpha += FADE_ALPHA_STEP;
+            if (fadeOverlayAlpha >= 1.0f) {
+                fadeOverlayAlpha = 1.0f;
+                moveToNextScene();
+                isFadeOutPhase = false;
+            }
+        } else {
+            fadeOverlayAlpha -= FADE_ALPHA_STEP;
+            if (fadeOverlayAlpha <= 0.0f) {
+                fadeOverlayAlpha = 0.0f;
+                isSceneTransitionActive = false;
+            }
+        }
+    }
+
     glutPostRedisplay();
+    glutTimerFunc(TIMER_INTERVAL_MS, update, 0);
+
+    (void)value; // Unused GLUT timer argument
 }
 
-static void idle() {
-    const double now = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
-    float dt = (float)(now - gLastTimeSec);
-    if (dt < 0.0f) dt = 0.0f;
-    if (dt > 0.1f) dt = 0.1f;
-    gLastTimeSec = now;
-    gHomeEnvironment.update(dt);
-    glutPostRedisplay();
+void keyboard(unsigned char key, int x, int y) {
+    // Toggle text with 't', restart scene cycle with 'r', quit with ESC.
+    if (key == 't' || key == 'T') {
+        showTextOverlay = !showTextOverlay;
+    }
+
+    if (key == 'r' || key == 'R') {
+        currentScene = 1;
+        sceneFrameCounter = 0;
+        fadeOverlayAlpha = 0.0f;
+        isSceneTransitionActive = false;
+        isFadeOutPhase = false;
+        resetVariablesForScene(1);
+    }
+
+    if (key == 27) {
+        std::exit(0);
+    }
+
+    (void)x;
+    (void)y;
 }
 
-int main(int argc, char* argv[]) {
+// ==========================================================
+// ====== PROGRAM ENTRY POINT ================================
+// ==========================================================
+
+int main(int argc, char** argv) {
     glutInit(&argc, argv);
-    glutInitWindowSize(gWindowWidth, gWindowHeight);
-    glutInitWindowPosition(80, 50);
-    glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
-    glutCreateWindow("Life of An Office Worker In A Modern Urban Area");
-    glutReshapeFunc(resize);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
+    glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+    glutInitWindowPosition(80, 40);
+    glutCreateWindow("Life-of-A-Office-Worker-In-A-Modern-Urban-Area");
+
+    glDisable(GL_DEPTH_TEST); // Strictly 2D project
+
+    resetVariablesForScene(1);
+
     glutDisplayFunc(display);
-    glutKeyboardFunc(key);
-    glutIdleFunc(idle);
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    glShadeModel(GL_SMOOTH);
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
-    glEnable(GL_NORMALIZE);
-    gHomeEnvironment.resetMorningSequence();
-    gLastTimeSec = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+    glutReshapeFunc(reshape);
+    glutKeyboardFunc(keyboard);
+    glutTimerFunc(TIMER_INTERVAL_MS, update, 0);
+
     glutMainLoop();
-    return EXIT_SUCCESS;
+    return 0;
 }
