@@ -283,6 +283,9 @@ void drawCar(float carPositionX, float carPositionY, float bodyRed, float bodyGr
 
 void initRain();
 void drawRain();
+void drawHouseWindow(float windowLeftX, float windowBottomY, float windowWidth, float windowHeight,
+                     bool morningMode, bool windowLit);
+void drawHeadlightCone(float carPositionX, float carPositionY, bool coneEnabled);
 void drawHouse(bool isLit);
 void drawTree(float treeBaseX, float treeBaseY);
 void drawBuilding(float buildingPositionX, float buildingBottomY, float buildingWidth, float buildingHeight);
@@ -577,18 +580,41 @@ void drawCloud(float cloudCenterX, float cloudCenterY) {
 }
 
 void drawTree(float treeBaseX, float treeBaseY) {
-    // Tree trunk.
-    glColor3f(0.42f, 0.24f, 0.12f);
-    drawRectangle(treeBaseX - 10.0f, treeBaseY, 20.0f, 72.0f); // Trunk body
+    const float trunkWidth = 18.0f;   // Rectangle trunk width
+    const float trunkHeight = 78.0f;  // Rectangle trunk height
 
-    // Layered leaf canopy for depth.
-    glColor3f(0.18f, 0.52f, 0.20f);
-    drawFilledCircle(treeBaseX, treeBaseY + 90.0f, 32.0f, 28);  // Lower center leaves
-    drawFilledCircle(treeBaseX - 24.0f, treeBaseY + 82.0f, 24.0f, 24); // Left leaves
-    drawFilledCircle(treeBaseX + 24.0f, treeBaseY + 84.0f, 24.0f, 24); // Right leaves
+    // Trunk: simple brown rectangle for viva-friendly explanation.
+    glColor3f(0.42f, 0.26f, 0.14f);
+    drawRectangle(treeBaseX - trunkWidth * 0.5f, treeBaseY, trunkWidth, trunkHeight);
 
-    glColor3f(0.14f, 0.44f, 0.16f);
-    drawFilledCircle(treeBaseX, treeBaseY + 116.0f, 26.0f, 24); // Top leaves
+    // Leaves use overlapping polygons to avoid a perfect circular tree shape.
+    glColor3f(0.16f, 0.46f, 0.18f);
+    glBegin(GL_POLYGON);
+    glVertex2f(treeBaseX - 44.0f, treeBaseY + 78.0f);  // Lower-left leaf corner
+    glVertex2f(treeBaseX - 26.0f, treeBaseY + 112.0f); // Upper-left leaf corner
+    glVertex2f(treeBaseX + 10.0f, treeBaseY + 124.0f); // Upper-middle leaf corner
+    glVertex2f(treeBaseX + 46.0f, treeBaseY + 98.0f);  // Upper-right leaf corner
+    glVertex2f(treeBaseX + 26.0f, treeBaseY + 68.0f);  // Lower-right leaf corner
+    glVertex2f(treeBaseX - 16.0f, treeBaseY + 62.0f);  // Lower-middle leaf corner
+    glEnd();
+
+    glColor3f(0.20f, 0.56f, 0.22f);
+    glBegin(GL_POLYGON);
+    glVertex2f(treeBaseX - 30.0f, treeBaseY + 96.0f);  // Left overlap leaf point
+    glVertex2f(treeBaseX - 8.0f, treeBaseY + 136.0f);  // Top-left overlap leaf point
+    glVertex2f(treeBaseX + 22.0f, treeBaseY + 140.0f); // Top-right overlap leaf point
+    glVertex2f(treeBaseX + 40.0f, treeBaseY + 108.0f); // Right overlap leaf point
+    glVertex2f(treeBaseX + 14.0f, treeBaseY + 86.0f);  // Bottom-right overlap leaf point
+    glVertex2f(treeBaseX - 18.0f, treeBaseY + 84.0f);  // Bottom-left overlap leaf point
+    glEnd();
+
+    glColor3f(0.12f, 0.38f, 0.14f);
+    glBegin(GL_POLYGON);
+    glVertex2f(treeBaseX - 14.0f, treeBaseY + 120.0f); // Top canopy left point
+    glVertex2f(treeBaseX + 4.0f, treeBaseY + 152.0f);  // Top canopy peak point
+    glVertex2f(treeBaseX + 24.0f, treeBaseY + 126.0f); // Top canopy right point
+    glVertex2f(treeBaseX + 6.0f, treeBaseY + 108.0f);  // Top canopy lower point
+    glEnd();
 }
 
 void drawStars() {
@@ -987,7 +1013,11 @@ void drawHomeGroundAndDriveway(bool nightMode) {
     glEnd();
 
     // Driveway side highlight lines.
-    glColor3f(0.72f, 0.72f, 0.74f);
+    if (nightMode) {
+        glColor3f(0.52f, 0.54f, 0.58f);
+    } else {
+        glColor3f(0.72f, 0.72f, 0.74f);
+    }
     glLineWidth(2.0f);
     glBegin(GL_LINES);
     glVertex2f(homeDrivewayRoadLeftX, homeDrivewayRoadY);
@@ -1190,10 +1220,6 @@ void initRain() {
 }
 
 void drawRain() {
-    if (!isRainEnabled) {
-        return;
-    }
-
     // Rain is simulated by repeatedly moving line segments downward.
     glColor3f(0.70f, 0.74f, 0.80f);
     glLineWidth(1.4f);
@@ -1206,57 +1232,228 @@ void drawRain() {
     glLineWidth(1.0f);
 }
 
-void drawHouse(bool isLit) {
-    // This quad represents the house wall.
-    glColor3f(0.76f, 0.72f, 0.66f);
-    drawRectangle(homeHouseLeftX, homeHouseBottomY, homeHouseWidth, homeHouseHeight);
+void drawHouseWindow(float windowLeftX, float windowBottomY, float windowWidth, float windowHeight,
+                     bool morningMode, bool windowLit) {
+    const float frameThickness = 3.0f; // Thickness of dark outer frame
+    const float splitThickness = 2.0f; // Thickness of middle split bars
 
-    // This triangle represents the roof.
-    glColor3f(0.44f, 0.22f, 0.18f);
-    glBegin(GL_TRIANGLES);
-    glVertex2f(homeHouseLeftX - 26.0f, homeHouseBottomY + homeHouseHeight + 8.0f);
-    glVertex2f(homeHouseLeftX + homeHouseWidth + 26.0f, homeHouseBottomY + homeHouseHeight + 8.0f);
-    glVertex2f(homeHouseLeftX + homeHouseWidth * 0.5f, homeHouseBottomY + homeHouseHeight + 142.0f);
-    glEnd();
+    // Outer frame.
+    glColor3f(0.20f, 0.18f, 0.16f);
+    drawRectangle(windowLeftX, windowBottomY, windowWidth, windowHeight);
 
-    // This quad represents a chimney.
-    glColor3f(0.56f, 0.34f, 0.30f);
-    drawRectangle(homeHouseLeftX + 322.0f, homeHouseBottomY + homeHouseHeight + 66.0f, 28.0f, 72.0f);
-
-    // This quad represents the main door.
-    glColor3f(0.50f, 0.34f, 0.20f);
-    drawRectangle(homeHouseLeftX + 88.0f, homeHouseBottomY, 64.0f, 110.0f);
-
-    // This circle represents the door handle.
-    glColor3f(0.92f, 0.74f, 0.20f);
-    drawFilledCircle(homeHouseLeftX + 140.0f, homeHouseBottomY + 52.0f, 3.0f, 18);
-
-    // Window color logic:
-    // - Scene 1 uses dim blue windows for rainy mood.
-    // - Scene 9 starts dark and becomes bright yellow when the car fully parks.
-    if (currentScene == 1) {
-        glColor3f(0.56f, 0.72f, 0.82f);
+    // Glass fill color depends on Scene 1 / Scene 9 lighting state.
+    if (morningMode) {
+        glColor3f(0.60f, 0.74f, 0.84f); // Scene 1: muted light-blue glass
+    } else if (windowLit) {
+        glColor3f(0.98f, 0.88f, 0.54f); // Scene 9 ON: warm yellow interior light
     } else {
-        if (isLit) {
-            glColor3f(0.98f, 0.90f, 0.56f);
-        } else {
-            glColor3f(0.20f, 0.24f, 0.30f);
-        }
+        glColor3f(0.12f, 0.14f, 0.18f); // Scene 9 OFF: dark window
+    }
+    drawRectangle(windowLeftX + frameThickness,
+                  windowBottomY + frameThickness,
+                  windowWidth - 2.0f * frameThickness,
+                  windowHeight - 2.0f * frameThickness);
+
+    // Window split bars (cross frame).
+    glColor3f(0.18f, 0.16f, 0.14f);
+    drawRectangle(windowLeftX + windowWidth * 0.5f - splitThickness * 0.5f,
+                  windowBottomY + frameThickness,
+                  splitThickness,
+                  windowHeight - 2.0f * frameThickness);
+    drawRectangle(windowLeftX + frameThickness,
+                  windowBottomY + windowHeight * 0.5f - splitThickness * 0.5f,
+                  windowWidth - 2.0f * frameThickness,
+                  splitThickness);
+}
+
+void drawHeadlightCone(float carPositionX, float carPositionY, bool coneEnabled) {
+    if (!coneEnabled) {
+        return;
     }
 
-    // These quads represent house windows.
-    drawRectangle(homeHouseLeftX + 190.0f, homeHouseBottomY + 68.0f, 88.0f, 64.0f);
-    drawRectangle(homeHouseLeftX + 318.0f, homeHouseBottomY + 68.0f, 88.0f, 64.0f);
-    drawRectangle(homeHouseLeftX + 190.0f, homeHouseBottomY + 162.0f, 88.0f, 64.0f);
-    drawRectangle(homeHouseLeftX + 318.0f, homeHouseBottomY + 162.0f, 88.0f, 64.0f);
+    const float coneStartX = carPositionX + 70.0f;   // Front bumper X where light starts
+    const float coneStartY = carPositionY + 20.0f;   // Front bumper center Y
+    const float coneReachX = carPositionX + 252.0f;  // Light reach distance on road
 
-    // This quad represents the garage body.
-    glColor3f(0.68f, 0.66f, 0.62f);
-    drawRectangle(homeGarageLeftX, homeGarageBottomY, homeGarageWidth, homeGarageHeight);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // This quad represents the garage opening.
-    glColor3f(0.08f, 0.08f, 0.10f);
-    drawRectangle(homeGarageDoorLeftX, homeGarageDoorBottomY, homeGarageDoorWidth, homeGarageDoorHeight);
+    // This triangle simulates light spreading forward.
+    glColor4f(1.0f, 0.94f, 0.46f, 0.26f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(coneStartX, coneStartY);                  // Light origin at front bumper
+    glVertex2f(coneReachX, carPositionY + 58.0f);        // Upper spread point
+    glVertex2f(coneReachX, carPositionY - 14.0f);        // Lower spread point
+    glEnd();
+
+    // Inner brighter core for stronger center beam.
+    glColor4f(1.0f, 0.98f, 0.70f, 0.34f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(coneStartX + 4.0f, coneStartY);           // Inner light origin
+    glVertex2f(coneReachX - 36.0f, carPositionY + 42.0f); // Inner upper spread point
+    glVertex2f(coneReachX - 36.0f, carPositionY + 0.0f);  // Inner lower spread point
+    glEnd();
+
+    glDisable(GL_BLEND);
+}
+
+void drawHouse(bool isLit) {
+    const float houseBaseX = homeHouseLeftX + 14.0f;          // Left edge of main 2-story section
+    const float houseBaseY = homeHouseBottomY;                // Ground contact Y for main section
+    const float mainSectionWidth = homeHouseWidth - 120.0f;   // Main 2-story section width
+    const float mainSectionHeight = homeHouseHeight + 20.0f;  // Main 2-story section height
+
+    const float garageStartX = homeGarageLeftX;         // Garage wing left edge
+    const float garageBaseY = homeGarageBottomY;        // Garage wing bottom edge
+    const float garageWingWidth = homeGarageWidth;      // Garage wing width
+    const float garageWingHeight = homeGarageHeight;    // Garage wing one-story height
+
+    const float firstFloorHeight = 126.0f; // Main section first-floor height
+    const float roofOverhang = 16.0f;      // Roof extends beyond wall for realism
+
+    const float mainRoofBaseY = houseBaseY + mainSectionHeight + 8.0f; // Main roof base Y
+    const float mainRoofPeakX = houseBaseX + mainSectionWidth * 0.58f; // Slightly shifted peak for asymmetry
+    const float mainRoofPeakY = mainRoofBaseY + 122.0f;                // Main roof top peak Y
+
+    const float garageRoofBaseY = garageBaseY + garageWingHeight + 6.0f; // Garage roof base Y
+    const float garageRoofPeakX = garageStartX + garageWingWidth * 0.47f; // Garage roof peak X
+    const float garageRoofPeakY = garageRoofBaseY + 68.0f;                // Garage roof peak Y
+
+    const bool isMorningScene = (currentScene == 1); // Scene 1 uses blue glass, Scene 9 uses OFF/ON logic
+
+    // Color variation gives illusion of different materials.
+    glColor3f(0.85f, 0.79f, 0.69f);
+    drawRectangle(houseBaseX, houseBaseY, mainSectionWidth, firstFloorHeight);
+
+    glColor3f(0.80f, 0.74f, 0.65f);
+    drawRectangle(houseBaseX, houseBaseY + firstFloorHeight, mainSectionWidth, mainSectionHeight - firstFloorHeight);
+
+    // Floor separator strip makes two-story section visually clear.
+    glColor3f(0.72f, 0.66f, 0.58f);
+    drawRectangle(houseBaseX, houseBaseY + firstFloorHeight - 4.0f, mainSectionWidth, 8.0f);
+
+    // One-story garage wing attached to the right side.
+    glColor3f(0.77f, 0.72f, 0.64f);
+    drawRectangle(garageStartX, garageBaseY, garageWingWidth, garageWingHeight);
+
+    // Main roof with two gray shades.
+    // Different colors simulate roof material.
+    glColor3f(0.24f, 0.25f, 0.28f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(houseBaseX - roofOverhang, mainRoofBaseY);                // Main roof left overhang point
+    glVertex2f(houseBaseX + mainSectionWidth + roofOverhang, mainRoofBaseY); // Main roof right overhang point
+    glVertex2f(mainRoofPeakX, mainRoofPeakY);                            // Main roof peak point
+    glEnd();
+
+    glColor3f(0.34f, 0.35f, 0.38f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(mainRoofPeakX, mainRoofPeakY);                            // Shingle shade top point
+    glVertex2f(houseBaseX + mainSectionWidth + roofOverhang, mainRoofBaseY); // Shingle shade right point
+    glVertex2f(houseBaseX + mainSectionWidth * 0.62f, mainRoofBaseY);   // Shingle shade bottom point
+    glEnd();
+
+    // Garage roof with matching material style.
+    // Different colors simulate roof material.
+    glColor3f(0.22f, 0.23f, 0.26f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(garageStartX - roofOverhang, garageRoofBaseY);                // Garage roof left overhang point
+    glVertex2f(garageStartX + garageWingWidth + roofOverhang, garageRoofBaseY); // Garage roof right overhang point
+    glVertex2f(garageRoofPeakX, garageRoofPeakY);                              // Garage roof peak point
+    glEnd();
+
+    glColor3f(0.31f, 0.32f, 0.35f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(garageRoofPeakX, garageRoofPeakY);                              // Garage shade top point
+    glVertex2f(garageStartX + garageWingWidth + roofOverhang, garageRoofBaseY); // Garage shade right point
+    glVertex2f(garageStartX + garageWingWidth * 0.56f, garageRoofBaseY);       // Garage shade bottom point
+    glEnd();
+
+    // Chimney on main roof.
+    glColor3f(0.56f, 0.36f, 0.32f);
+    drawRectangle(houseBaseX + mainSectionWidth - 84.0f, mainRoofBaseY + 34.0f, 24.0f, 68.0f);
+
+    // Front entrance with porch canopy.
+    // This creates a realistic entrance instead of flat wall.
+    const float doorWidth = 56.0f;                    // Main front door width
+    const float doorHeight = 120.0f;                  // Main front door height
+    const float doorLeftX = houseBaseX + 94.0f;       // Front door left edge
+    const float doorBottomY = houseBaseY;             // Front door bottom edge
+    const float porchRoofBaseY = doorBottomY + doorHeight + 12.0f; // Porch roof base Y
+
+    glColor3f(0.62f, 0.60f, 0.56f);
+    drawRectangle(doorLeftX - 18.0f, houseBaseY - 10.0f, doorWidth + 36.0f, 10.0f); // Upper step
+    drawRectangle(doorLeftX - 26.0f, houseBaseY - 18.0f, doorWidth + 52.0f, 8.0f);  // Lower step
+
+    glColor3f(0.68f, 0.62f, 0.54f);
+    drawRectangle(doorLeftX - 20.0f, doorBottomY + doorHeight, doorWidth + 40.0f, 12.0f); // Porch canopy base
+
+    glColor3f(0.28f, 0.29f, 0.32f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(doorLeftX - 28.0f, porchRoofBaseY);          // Porch roof left point
+    glVertex2f(doorLeftX + doorWidth + 28.0f, porchRoofBaseY); // Porch roof right point
+    glVertex2f(doorLeftX + doorWidth * 0.5f, porchRoofBaseY + 34.0f); // Porch roof peak point
+    glEnd();
+
+    // Door pillars under porch canopy.
+    glColor3f(0.74f, 0.69f, 0.60f);
+    drawRectangle(doorLeftX - 18.0f, doorBottomY, 8.0f, doorHeight);                 // Left porch pillar
+    drawRectangle(doorLeftX + doorWidth + 10.0f, doorBottomY, 8.0f, doorHeight);     // Right porch pillar
+
+    // Main front door.
+    glColor3f(0.48f, 0.31f, 0.17f);
+    drawRectangle(doorLeftX, doorBottomY, doorWidth, doorHeight);
+
+    glColor3f(0.34f, 0.22f, 0.12f);
+    drawRectangle(doorLeftX + 6.0f, doorBottomY + 12.0f, doorWidth - 12.0f, 42.0f);  // Lower door panel
+    drawRectangle(doorLeftX + 6.0f, doorBottomY + 66.0f, doorWidth - 12.0f, 42.0f);  // Upper door panel
+
+    glColor3f(0.92f, 0.76f, 0.26f);
+    drawFilledCircle(doorLeftX + doorWidth - 10.0f, doorBottomY + 58.0f, 3.2f, 18);  // Door handle
+
+    // Window layout for main house and garage.
+    const float windowWidth = 56.0f;   // Main window width
+    const float windowHeight = 54.0f;  // Main window height
+
+    // Scene 9 warm welcome effect: selected windows turn ON after parking.
+    const bool litUpperMiddle = isLit;
+    const bool litUpperRight = isLit;
+    const bool litLowerRight = isLit;
+
+    drawHouseWindow(houseBaseX + 18.0f,  houseBaseY + 58.0f, windowWidth, windowHeight, isMorningScene, false);        // Lower-left window
+    drawHouseWindow(houseBaseX + 168.0f, houseBaseY + 58.0f, windowWidth, windowHeight, isMorningScene, litLowerRight); // Lower-right window
+
+    drawHouseWindow(houseBaseX + 18.0f,  houseBaseY + 166.0f, windowWidth, windowHeight, isMorningScene, false);         // Upper-left window
+    drawHouseWindow(houseBaseX + 122.0f, houseBaseY + 166.0f, windowWidth, windowHeight, isMorningScene, litUpperMiddle); // Upper-middle window
+    drawHouseWindow(houseBaseX + 226.0f, houseBaseY + 166.0f, windowWidth, windowHeight, isMorningScene, litUpperRight);  // Upper-right window
+
+    // Garage side window.
+    drawHouseWindow(garageStartX + 12.0f, garageBaseY + 98.0f, 42.0f, 38.0f, isMorningScene, isLit); // Small garage window
+
+    // Garage door opening and panel details.
+    glColor3f(0.08f, 0.09f, 0.11f);
+    drawRectangle(homeGarageDoorLeftX, homeGarageDoorBottomY, homeGarageDoorWidth, homeGarageDoorHeight); // Dark interior opening
+
+    const int garagePanelCount = 6; // Number of horizontal garage door panel lines
+    const float panelStepY = homeGarageDoorHeight / static_cast<float>(garagePanelCount);
+
+    glColor3f(0.46f, 0.48f, 0.52f);
+    for (int panelIndex = 1; panelIndex < garagePanelCount; ++panelIndex) {
+        const float panelLineY = homeGarageDoorBottomY + panelStepY * static_cast<float>(panelIndex);
+        drawRectangle(homeGarageDoorLeftX + 8.0f, panelLineY, homeGarageDoorWidth - 16.0f, 2.0f); // Garage panel separator line
+    }
+
+    // Garage door side rails and driveway threshold.
+    glColor3f(0.54f, 0.56f, 0.60f);
+    drawRectangle(homeGarageDoorLeftX, homeGarageDoorBottomY, 4.0f, homeGarageDoorHeight); // Left rail
+    drawRectangle(homeGarageDoorLeftX + homeGarageDoorWidth - 4.0f,
+                  homeGarageDoorBottomY,
+                  4.0f,
+                  homeGarageDoorHeight); // Right rail
+
+    drawRectangle(homeDrivewayGarageLeftX,
+                  homeDrivewayGarageY,
+                  homeDrivewayGarageRightX - homeDrivewayGarageLeftX,
+                  6.0f); // Driveway top threshold aligned with garage
 }
 
 // ==========================================================
@@ -1728,6 +1925,12 @@ void drawScene1MorningHomeDeparture() {
     if (!isRainEnabled) {
         drawMorningHomeSky();
         drawHomeGroundAndDriveway(false);
+
+        // Keep subtle wet patches so morning departure still feels rainy and muted.
+        glColor3f(0.72f, 0.74f, 0.78f);
+        drawFilledEllipse(170.0f, 70.0f, 54.0f, 13.0f, 30);
+        drawFilledEllipse(502.0f, 73.0f, 66.0f, 15.0f, 30);
+        drawFilledEllipse(905.0f, 69.0f, 60.0f, 12.0f, 30);
     } else {
         // Overcast rainy sky.
         drawVerticalSkyGradient(
@@ -1769,10 +1972,10 @@ void drawScene1MorningHomeDeparture() {
         drawFilledEllipse(930.0f, 70.0f, 62.0f, 13.0f, 32);
     }
 
-    // Trees in yard.
-    drawTree(74.0f, 128.0f);
-    drawTree(640.0f, 134.0f);
-    drawTree(760.0f, 126.0f);
+    // Trees around the upgraded house.
+    drawTree(88.0f, 120.0f);
+    drawTree(640.0f, 132.0f);
+    drawTree(748.0f, 124.0f);
 
     // House with dim rainy windows.
     drawHouse(false);
@@ -1800,27 +2003,13 @@ void drawScene9ReturnHome() {
     // Simple moon.
     drawMoon(1030.0f, 620.0f);
 
-    // Bottom dark road.
-    glColor3f(0.10f, 0.10f, 0.12f);
-    drawRectangle(0.0f, homeRoadBottomY, 1280.0f, homeRoadHeight);
+    // Reuse shared night ground so road-grass-driveway join is clean.
+    drawHomeGroundAndDriveway(true);
 
-    // Night grass tone.
-    glColor3f(0.12f, 0.24f, 0.15f);
-    drawRectangle(0.0f, homeGrassBottomY, 1280.0f, homeGrassHeight);
-
-    // Driveway polygon.
-    glColor3f(0.30f, 0.32f, 0.34f);
-    glBegin(GL_POLYGON);
-    glVertex2f(homeDrivewayRoadLeftX, homeDrivewayRoadY);
-    glVertex2f(homeDrivewayRoadRightX, homeDrivewayRoadY);
-    glVertex2f(homeDrivewayGarageRightX, homeDrivewayGarageY);
-    glVertex2f(homeDrivewayGarageLeftX, homeDrivewayGarageY);
-    glEnd();
-
-    // Trees in night scene.
-    drawTree(74.0f, 128.0f);
-    drawTree(640.0f, 134.0f);
-    drawTree(760.0f, 126.0f);
+    // Trees around the upgraded house.
+    drawTree(88.0f, 120.0f);
+    drawTree(640.0f, 132.0f);
+    drawTree(748.0f, 124.0f);
 
     // House windows are dark first; turn bright when car fully parks.
     drawHouse(isHouseLightOn);
@@ -1831,6 +2020,9 @@ void drawScene9ReturnHome() {
     // Return car with headlights and taillights.
     drawCar(scene9_carPosX, scene9_carPosY, 0.84f, 0.20f, 0.18f,
             wheelRotationAngle, headlightsOn, true, true);
+
+    // Dedicated moving light cone in front of the car.
+    drawHeadlightCone(scene9_carPosX, scene9_carPosY, headlightsOn);
 }
 
 // ==========================================================
