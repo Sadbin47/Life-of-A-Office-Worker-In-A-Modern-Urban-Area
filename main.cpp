@@ -1011,21 +1011,1663 @@ void meetingChair(float x, float y, float scale, bool frontSide) {
 
 void scene1() {
     if (!isRainEnabled) {
-        gradSky(0.68f,0.88f,0.99f, 0.88f,0.96f,1.00f);
-        sun(1020+sunHorizontalOffset*0.20f, 620);
-        cloud(210+cloudOffsetX_layerA*0.70f,620);
-        cloud(520+cloudOffsetX_layerB*0.60f,650);
-        homeGround(false);
+        float skyBottomR = 0.68f;
+        float skyBottomG = 0.88f;
+        float skyBottomB = 0.99f;
+        float skyTopR = 0.88f;
+        float skyTopG = 0.96f;
+        float skyTopB = 1.00f;
+        glBegin(GL_QUADS);
+        glColor3f(skyBottomR, skyBottomG, skyBottomB);
+        glVertex2f(0.0f, 0.0f);
+        glColor3f(skyBottomR, skyBottomG, skyBottomB);
+        glVertex2f(1280.0f, 0.0f);
+        glColor3f(skyTopR, skyTopG, skyTopB);
+        glVertex2f(1280.0f, 720.0f);
+        glColor3f(skyTopR, skyTopG, skyTopB);
+        glVertex2f(0.0f, 720.0f);
+        glEnd();
+
+        float sunCenterX = 1020.0f + sunHorizontalOffset * 0.20f;
+        float sunCenterY = 620.0f;
+        glColor3f(1.0f, 0.92f, 0.32f);
+        {
+            float centerX = sunCenterX;
+            float centerY = sunCenterY;
+            float radiusX = 36.0f;
+            float radiusY = 36.0f;
+            float step = 2.0f * PI_VALUE / 36.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 24.0f) * radiusX, centerY + sin(step * 24.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 25.0f) * radiusX, centerY + sin(step * 25.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 26.0f) * radiusX, centerY + sin(step * 26.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 27.0f) * radiusX, centerY + sin(step * 27.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 28.0f) * radiusX, centerY + sin(step * 28.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 29.0f) * radiusX, centerY + sin(step * 29.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 30.0f) * radiusX, centerY + sin(step * 30.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 31.0f) * radiusX, centerY + sin(step * 31.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 32.0f) * radiusX, centerY + sin(step * 32.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 33.0f) * radiusX, centerY + sin(step * 33.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 34.0f) * radiusX, centerY + sin(step * 34.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 35.0f) * radiusX, centerY + sin(step * 35.0f) * radiusY);
+            glEnd();
+        }
+        glColor3f(1.0f, 0.84f, 0.22f);
+        glLineWidth(2.0f);
+        glBegin(GL_LINES);
+        glVertex2f(sunCenterX - 54.0f, sunCenterY);
+        glVertex2f(sunCenterX - 38.0f, sunCenterY);
+        glVertex2f(sunCenterX + 38.0f, sunCenterY);
+        glVertex2f(sunCenterX + 54.0f, sunCenterY);
+        glVertex2f(sunCenterX, sunCenterY - 54.0f);
+        glVertex2f(sunCenterX, sunCenterY - 38.0f);
+        glVertex2f(sunCenterX, sunCenterY + 38.0f);
+        glVertex2f(sunCenterX, sunCenterY + 54.0f);
+        glEnd();
+        glLineWidth(1.0f);
+
+        float cloudA_CenterX = 210.0f + cloudOffsetX_layerA * 0.70f;
+        float cloudA_CenterY = 620.0f;
+        glColor3f(0.98f, 0.98f, 0.99f);
+        {
+            float centerX = cloudA_CenterX;
+            float centerY = cloudA_CenterY;
+            float radiusX = 28.0f;
+            float radiusY = 28.0f;
+            float step = 2.0f * PI_VALUE / 28.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 24.0f) * radiusX, centerY + sin(step * 24.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 25.0f) * radiusX, centerY + sin(step * 25.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 26.0f) * radiusX, centerY + sin(step * 26.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 27.0f) * radiusX, centerY + sin(step * 27.0f) * radiusY);
+            glEnd();
+        }
+        {
+            float centerX = cloudA_CenterX - 30.0f;
+            float centerY = cloudA_CenterY - 4.0f;
+            float radiusX = 22.0f;
+            float radiusY = 22.0f;
+            float step = 2.0f * PI_VALUE / 24.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glEnd();
+        }
+        {
+            float centerX = cloudA_CenterX + 30.0f;
+            float centerY = cloudA_CenterY - 2.0f;
+            float radiusX = 24.0f;
+            float radiusY = 24.0f;
+            float step = 2.0f * PI_VALUE / 24.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glEnd();
+        }
+        {
+            float centerX = cloudA_CenterX + 2.0f;
+            float centerY = cloudA_CenterY + 18.0f;
+            float radiusX = 20.0f;
+            float radiusY = 20.0f;
+            float step = 2.0f * PI_VALUE / 24.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glEnd();
+        }
+
+        float cloudB_CenterX = 520.0f + cloudOffsetX_layerB * 0.60f;
+        float cloudB_CenterY = 650.0f;
+        glColor3f(0.98f, 0.98f, 0.99f);
+        {
+            float centerX = cloudB_CenterX;
+            float centerY = cloudB_CenterY;
+            float radiusX = 28.0f;
+            float radiusY = 28.0f;
+            float step = 2.0f * PI_VALUE / 28.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 24.0f) * radiusX, centerY + sin(step * 24.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 25.0f) * radiusX, centerY + sin(step * 25.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 26.0f) * radiusX, centerY + sin(step * 26.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 27.0f) * radiusX, centerY + sin(step * 27.0f) * radiusY);
+            glEnd();
+        }
+        {
+            float centerX = cloudB_CenterX - 30.0f;
+            float centerY = cloudB_CenterY - 4.0f;
+            float radiusX = 22.0f;
+            float radiusY = 22.0f;
+            float step = 2.0f * PI_VALUE / 24.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glEnd();
+        }
+        {
+            float centerX = cloudB_CenterX + 30.0f;
+            float centerY = cloudB_CenterY - 2.0f;
+            float radiusX = 24.0f;
+            float radiusY = 24.0f;
+            float step = 2.0f * PI_VALUE / 24.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glEnd();
+        }
+        {
+            float centerX = cloudB_CenterX + 2.0f;
+            float centerY = cloudB_CenterY + 18.0f;
+            float radiusX = 20.0f;
+            float radiusY = 20.0f;
+            float step = 2.0f * PI_VALUE / 24.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glEnd();
+        }
+
+        glColor3f(0.20f, 0.20f, 0.22f);
+        {
+            float left = 0.0f;
+            float bottom = homeRoadBottomY;
+            float right = left + 1280.0f;
+            float top = bottom + homeRoadHeight;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.66f, 0.66f, 0.70f);
+        {
+            float left = 0.0f;
+            float bottom = homeRoadBottomY + homeRoadHeight - 3.0f;
+            float right = left + 1280.0f;
+            float top = bottom + 3.0f;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.26f, 0.58f, 0.30f);
+        {
+            float left = 0.0f;
+            float bottom = homeGrassBottomY;
+            float right = left + 1280.0f;
+            float top = bottom + homeGrassHeight;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.52f, 0.52f, 0.56f);
+        glBegin(GL_POLYGON);
+        glVertex2f(250.0f, 110.0f);
+        glVertex2f(430.0f, 110.0f);
+        glVertex2f(500.0f, 300.0f);
+        glVertex2f(300.0f, 300.0f);
+        glEnd();
     } else {
-        gradSky(0.24f,0.26f,0.29f, 0.36f,0.38f,0.41f);
-        glColor3f(0.28f,0.30f,0.32f);
-        ellipse(220+cloudOffsetX_layerA*0.30f,632,170,46,40);
-        ellipse(620+cloudOffsetX_layerB*0.30f,654,190,52,40);
-        homeGround(false);
+        float skyBottomR = 0.24f;
+        float skyBottomG = 0.26f;
+        float skyBottomB = 0.29f;
+        float skyTopR = 0.36f;
+        float skyTopG = 0.38f;
+        float skyTopB = 0.41f;
+        glBegin(GL_QUADS);
+        glColor3f(skyBottomR, skyBottomG, skyBottomB);
+        glVertex2f(0.0f, 0.0f);
+        glColor3f(skyBottomR, skyBottomG, skyBottomB);
+        glVertex2f(1280.0f, 0.0f);
+        glColor3f(skyTopR, skyTopG, skyTopB);
+        glVertex2f(1280.0f, 720.0f);
+        glColor3f(skyTopR, skyTopG, skyTopB);
+        glVertex2f(0.0f, 720.0f);
+        glEnd();
+
+        glColor3f(0.28f, 0.30f, 0.32f);
+        {
+            float centerX = 220.0f + cloudOffsetX_layerA * 0.30f;
+            float centerY = 632.0f;
+            float radiusX = 170.0f;
+            float radiusY = 46.0f;
+            float step = 2.0f * PI_VALUE / 40.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 24.0f) * radiusX, centerY + sin(step * 24.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 25.0f) * radiusX, centerY + sin(step * 25.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 26.0f) * radiusX, centerY + sin(step * 26.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 27.0f) * radiusX, centerY + sin(step * 27.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 28.0f) * radiusX, centerY + sin(step * 28.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 29.0f) * radiusX, centerY + sin(step * 29.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 30.0f) * radiusX, centerY + sin(step * 30.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 31.0f) * radiusX, centerY + sin(step * 31.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 32.0f) * radiusX, centerY + sin(step * 32.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 33.0f) * radiusX, centerY + sin(step * 33.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 34.0f) * radiusX, centerY + sin(step * 34.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 35.0f) * radiusX, centerY + sin(step * 35.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 36.0f) * radiusX, centerY + sin(step * 36.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 37.0f) * radiusX, centerY + sin(step * 37.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 38.0f) * radiusX, centerY + sin(step * 38.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 39.0f) * radiusX, centerY + sin(step * 39.0f) * radiusY);
+            glEnd();
+        }
+        {
+            float centerX = 620.0f + cloudOffsetX_layerB * 0.30f;
+            float centerY = 654.0f;
+            float radiusX = 190.0f;
+            float radiusY = 52.0f;
+            float step = 2.0f * PI_VALUE / 40.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 24.0f) * radiusX, centerY + sin(step * 24.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 25.0f) * radiusX, centerY + sin(step * 25.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 26.0f) * radiusX, centerY + sin(step * 26.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 27.0f) * radiusX, centerY + sin(step * 27.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 28.0f) * radiusX, centerY + sin(step * 28.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 29.0f) * radiusX, centerY + sin(step * 29.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 30.0f) * radiusX, centerY + sin(step * 30.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 31.0f) * radiusX, centerY + sin(step * 31.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 32.0f) * radiusX, centerY + sin(step * 32.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 33.0f) * radiusX, centerY + sin(step * 33.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 34.0f) * radiusX, centerY + sin(step * 34.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 35.0f) * radiusX, centerY + sin(step * 35.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 36.0f) * radiusX, centerY + sin(step * 36.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 37.0f) * radiusX, centerY + sin(step * 37.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 38.0f) * radiusX, centerY + sin(step * 38.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 39.0f) * radiusX, centerY + sin(step * 39.0f) * radiusY);
+            glEnd();
+        }
+
+        glColor3f(0.20f, 0.20f, 0.22f);
+        {
+            float left = 0.0f;
+            float bottom = homeRoadBottomY;
+            float right = left + 1280.0f;
+            float top = bottom + homeRoadHeight;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.66f, 0.66f, 0.70f);
+        {
+            float left = 0.0f;
+            float bottom = homeRoadBottomY + homeRoadHeight - 3.0f;
+            float right = left + 1280.0f;
+            float top = bottom + 3.0f;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.26f, 0.58f, 0.30f);
+        {
+            float left = 0.0f;
+            float bottom = homeGrassBottomY;
+            float right = left + 1280.0f;
+            float top = bottom + homeGrassHeight;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.52f, 0.52f, 0.56f);
+        glBegin(GL_POLYGON);
+        glVertex2f(250.0f, 110.0f);
+        glVertex2f(430.0f, 110.0f);
+        glVertex2f(500.0f, 300.0f);
+        glVertex2f(300.0f, 300.0f);
+        glEnd();
     }
-    tree(88,120); tree(640,132); tree(748,124);
-    house(false);
-    car(scene1_carPosX, scene1_carPosY, 0.84f,0.20f,0.18f, wheelRotationAngle, false, false, true);
+
+    {
+        float treeBaseX = 88.0f;
+        float treeBaseY = 120.0f;
+        glColor3f(0.42f, 0.26f, 0.14f);
+        {
+            float left = treeBaseX - 9.0f;
+            float bottom = treeBaseY;
+            float right = treeBaseX + 9.0f;
+            float top = treeBaseY + 78.0f;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.16f, 0.46f, 0.18f);
+        glBegin(GL_POLYGON);
+        glVertex2f(treeBaseX - 44.0f, treeBaseY + 78.0f);
+        glVertex2f(treeBaseX - 26.0f, treeBaseY + 112.0f);
+        glVertex2f(treeBaseX + 10.0f, treeBaseY + 124.0f);
+        glVertex2f(treeBaseX + 46.0f, treeBaseY + 98.0f);
+        glVertex2f(treeBaseX + 26.0f, treeBaseY + 68.0f);
+        glVertex2f(treeBaseX - 16.0f, treeBaseY + 62.0f);
+        glEnd();
+        glColor3f(0.20f, 0.56f, 0.22f);
+        glBegin(GL_POLYGON);
+        glVertex2f(treeBaseX - 30.0f, treeBaseY + 96.0f);
+        glVertex2f(treeBaseX - 8.0f, treeBaseY + 136.0f);
+        glVertex2f(treeBaseX + 22.0f, treeBaseY + 140.0f);
+        glVertex2f(treeBaseX + 40.0f, treeBaseY + 108.0f);
+        glVertex2f(treeBaseX + 14.0f, treeBaseY + 86.0f);
+        glVertex2f(treeBaseX - 18.0f, treeBaseY + 84.0f);
+        glEnd();
+    }
+
+    {
+        float treeBaseX = 640.0f;
+        float treeBaseY = 132.0f;
+        glColor3f(0.42f, 0.26f, 0.14f);
+        {
+            float left = treeBaseX - 9.0f;
+            float bottom = treeBaseY;
+            float right = treeBaseX + 9.0f;
+            float top = treeBaseY + 78.0f;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.16f, 0.46f, 0.18f);
+        glBegin(GL_POLYGON);
+        glVertex2f(treeBaseX - 44.0f, treeBaseY + 78.0f);
+        glVertex2f(treeBaseX - 26.0f, treeBaseY + 112.0f);
+        glVertex2f(treeBaseX + 10.0f, treeBaseY + 124.0f);
+        glVertex2f(treeBaseX + 46.0f, treeBaseY + 98.0f);
+        glVertex2f(treeBaseX + 26.0f, treeBaseY + 68.0f);
+        glVertex2f(treeBaseX - 16.0f, treeBaseY + 62.0f);
+        glEnd();
+        glColor3f(0.20f, 0.56f, 0.22f);
+        glBegin(GL_POLYGON);
+        glVertex2f(treeBaseX - 30.0f, treeBaseY + 96.0f);
+        glVertex2f(treeBaseX - 8.0f, treeBaseY + 136.0f);
+        glVertex2f(treeBaseX + 22.0f, treeBaseY + 140.0f);
+        glVertex2f(treeBaseX + 40.0f, treeBaseY + 108.0f);
+        glVertex2f(treeBaseX + 14.0f, treeBaseY + 86.0f);
+        glVertex2f(treeBaseX - 18.0f, treeBaseY + 84.0f);
+        glEnd();
+    }
+
+    {
+        float treeBaseX = 748.0f;
+        float treeBaseY = 124.0f;
+        glColor3f(0.42f, 0.26f, 0.14f);
+        {
+            float left = treeBaseX - 9.0f;
+            float bottom = treeBaseY;
+            float right = treeBaseX + 9.0f;
+            float top = treeBaseY + 78.0f;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.16f, 0.46f, 0.18f);
+        glBegin(GL_POLYGON);
+        glVertex2f(treeBaseX - 44.0f, treeBaseY + 78.0f);
+        glVertex2f(treeBaseX - 26.0f, treeBaseY + 112.0f);
+        glVertex2f(treeBaseX + 10.0f, treeBaseY + 124.0f);
+        glVertex2f(treeBaseX + 46.0f, treeBaseY + 98.0f);
+        glVertex2f(treeBaseX + 26.0f, treeBaseY + 68.0f);
+        glVertex2f(treeBaseX - 16.0f, treeBaseY + 62.0f);
+        glEnd();
+        glColor3f(0.20f, 0.56f, 0.22f);
+        glBegin(GL_POLYGON);
+        glVertex2f(treeBaseX - 30.0f, treeBaseY + 96.0f);
+        glVertex2f(treeBaseX - 8.0f, treeBaseY + 136.0f);
+        glVertex2f(treeBaseX + 22.0f, treeBaseY + 140.0f);
+        glVertex2f(treeBaseX + 40.0f, treeBaseY + 108.0f);
+        glVertex2f(treeBaseX + 14.0f, treeBaseY + 86.0f);
+        glVertex2f(treeBaseX - 18.0f, treeBaseY + 84.0f);
+        glEnd();
+    }
+
+    {
+        float houseBaseX = homeHouseLeftX + 14.0f;
+        float houseBaseY = homeHouseBottomY;
+        float houseSectionW = 300.0f;
+        float houseSectionH = 270.0f;
+        float garageStartX = homeGarageLeftX;
+        float garageBaseY = homeGarageBottomY;
+        glColor3f(0.85f, 0.79f, 0.69f);
+        {
+            float left = houseBaseX;
+            float bottom = houseBaseY;
+            float right = left + houseSectionW;
+            float top = bottom + 126.0f;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.80f, 0.74f, 0.65f);
+        {
+            float left = houseBaseX;
+            float bottom = houseBaseY + 126.0f;
+            float right = left + houseSectionW;
+            float top = houseBaseY + houseSectionH;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.77f, 0.72f, 0.64f);
+        {
+            float left = garageStartX;
+            float bottom = garageBaseY;
+            float right = left + 240.0f;
+            float top = bottom + 170.0f;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.24f, 0.25f, 0.28f);
+        glBegin(GL_TRIANGLES);
+        glVertex2f(houseBaseX - 16.0f, houseBaseY + houseSectionH + 8.0f);
+        glVertex2f(houseBaseX + houseSectionW + 16.0f, houseBaseY + houseSectionH + 8.0f);
+        glVertex2f(houseBaseX + 174.0f, houseBaseY + houseSectionH + 130.0f);
+        glEnd();
+        glBegin(GL_TRIANGLES);
+        glVertex2f(garageStartX - 16.0f, garageBaseY + 176.0f);
+        glVertex2f(garageStartX + 256.0f, garageBaseY + 176.0f);
+        glVertex2f(garageStartX + 112.0f, garageBaseY + 244.0f);
+        glEnd();
+
+        float doorX = houseBaseX + 94.0f;
+        glColor3f(0.48f, 0.31f, 0.17f);
+        {
+            float left = doorX;
+            float bottom = houseBaseY;
+            float right = left + 56.0f;
+            float top = bottom + 120.0f;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.92f, 0.76f, 0.26f);
+        {
+            float centerX = doorX + 46.0f;
+            float centerY = houseBaseY + 58.0f;
+            float radiusX = 3.2f;
+            float radiusY = 3.2f;
+            float step = 2.0f * PI_VALUE / 18.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glEnd();
+        }
+
+        bool morning = currentScene == 1;
+        bool houseLightOn = false;
+
+        {
+            float windowLeft = houseBaseX + 18.0f;
+            float windowBottom = houseBaseY + 58.0f;
+            float windowWidth = 56.0f;
+            float windowHeight = 54.0f;
+            glColor3f(0.20f, 0.18f, 0.16f);
+            {
+                float left = windowLeft;
+                float bottom = windowBottom;
+                float right = left + windowWidth;
+                float top = bottom + windowHeight;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            if (morning) glColor3f(0.60f, 0.74f, 0.84f);
+            else if (houseLightOn) glColor3f(0.98f, 0.88f, 0.54f);
+            else glColor3f(0.12f, 0.14f, 0.18f);
+            {
+                float left = windowLeft + 3.0f;
+                float bottom = windowBottom + 3.0f;
+                float right = windowLeft + windowWidth - 3.0f;
+                float top = windowBottom + windowHeight - 3.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            glColor3f(0.18f, 0.16f, 0.14f);
+            {
+                float left = windowLeft + windowWidth * 0.5f - 1.0f;
+                float bottom = windowBottom + 3.0f;
+                float right = left + 2.0f;
+                float top = windowBottom + windowHeight - 3.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            {
+                float left = windowLeft + 3.0f;
+                float bottom = windowBottom + windowHeight * 0.5f - 1.0f;
+                float right = windowLeft + windowWidth - 3.0f;
+                float top = bottom + 2.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+        }
+
+        {
+            float windowLeft = houseBaseX + 168.0f;
+            float windowBottom = houseBaseY + 58.0f;
+            float windowWidth = 56.0f;
+            float windowHeight = 54.0f;
+            glColor3f(0.20f, 0.18f, 0.16f);
+            {
+                float left = windowLeft;
+                float bottom = windowBottom;
+                float right = left + windowWidth;
+                float top = bottom + windowHeight;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            if (morning) glColor3f(0.60f, 0.74f, 0.84f);
+            else if (houseLightOn) glColor3f(0.98f, 0.88f, 0.54f);
+            else glColor3f(0.12f, 0.14f, 0.18f);
+            {
+                float left = windowLeft + 3.0f;
+                float bottom = windowBottom + 3.0f;
+                float right = windowLeft + windowWidth - 3.0f;
+                float top = windowBottom + windowHeight - 3.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            glColor3f(0.18f, 0.16f, 0.14f);
+            {
+                float left = windowLeft + windowWidth * 0.5f - 1.0f;
+                float bottom = windowBottom + 3.0f;
+                float right = left + 2.0f;
+                float top = windowBottom + windowHeight - 3.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            {
+                float left = windowLeft + 3.0f;
+                float bottom = windowBottom + windowHeight * 0.5f - 1.0f;
+                float right = windowLeft + windowWidth - 3.0f;
+                float top = bottom + 2.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+        }
+
+        {
+            float windowLeft = houseBaseX + 18.0f;
+            float windowBottom = houseBaseY + 166.0f;
+            float windowWidth = 56.0f;
+            float windowHeight = 54.0f;
+            glColor3f(0.20f, 0.18f, 0.16f);
+            {
+                float left = windowLeft;
+                float bottom = windowBottom;
+                float right = left + windowWidth;
+                float top = bottom + windowHeight;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            if (morning) glColor3f(0.60f, 0.74f, 0.84f);
+            else if (houseLightOn) glColor3f(0.98f, 0.88f, 0.54f);
+            else glColor3f(0.12f, 0.14f, 0.18f);
+            {
+                float left = windowLeft + 3.0f;
+                float bottom = windowBottom + 3.0f;
+                float right = windowLeft + windowWidth - 3.0f;
+                float top = windowBottom + windowHeight - 3.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            glColor3f(0.18f, 0.16f, 0.14f);
+            {
+                float left = windowLeft + windowWidth * 0.5f - 1.0f;
+                float bottom = windowBottom + 3.0f;
+                float right = left + 2.0f;
+                float top = windowBottom + windowHeight - 3.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            {
+                float left = windowLeft + 3.0f;
+                float bottom = windowBottom + windowHeight * 0.5f - 1.0f;
+                float right = windowLeft + windowWidth - 3.0f;
+                float top = bottom + 2.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+        }
+
+        {
+            float windowLeft = houseBaseX + 122.0f;
+            float windowBottom = houseBaseY + 166.0f;
+            float windowWidth = 56.0f;
+            float windowHeight = 54.0f;
+            glColor3f(0.20f, 0.18f, 0.16f);
+            {
+                float left = windowLeft;
+                float bottom = windowBottom;
+                float right = left + windowWidth;
+                float top = bottom + windowHeight;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            if (morning) glColor3f(0.60f, 0.74f, 0.84f);
+            else if (houseLightOn) glColor3f(0.98f, 0.88f, 0.54f);
+            else glColor3f(0.12f, 0.14f, 0.18f);
+            {
+                float left = windowLeft + 3.0f;
+                float bottom = windowBottom + 3.0f;
+                float right = windowLeft + windowWidth - 3.0f;
+                float top = windowBottom + windowHeight - 3.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            glColor3f(0.18f, 0.16f, 0.14f);
+            {
+                float left = windowLeft + windowWidth * 0.5f - 1.0f;
+                float bottom = windowBottom + 3.0f;
+                float right = left + 2.0f;
+                float top = windowBottom + windowHeight - 3.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            {
+                float left = windowLeft + 3.0f;
+                float bottom = windowBottom + windowHeight * 0.5f - 1.0f;
+                float right = windowLeft + windowWidth - 3.0f;
+                float top = bottom + 2.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+        }
+
+        {
+            float windowLeft = houseBaseX + 226.0f;
+            float windowBottom = houseBaseY + 166.0f;
+            float windowWidth = 56.0f;
+            float windowHeight = 54.0f;
+            glColor3f(0.20f, 0.18f, 0.16f);
+            {
+                float left = windowLeft;
+                float bottom = windowBottom;
+                float right = left + windowWidth;
+                float top = bottom + windowHeight;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            if (morning) glColor3f(0.60f, 0.74f, 0.84f);
+            else if (houseLightOn) glColor3f(0.98f, 0.88f, 0.54f);
+            else glColor3f(0.12f, 0.14f, 0.18f);
+            {
+                float left = windowLeft + 3.0f;
+                float bottom = windowBottom + 3.0f;
+                float right = windowLeft + windowWidth - 3.0f;
+                float top = windowBottom + windowHeight - 3.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            glColor3f(0.18f, 0.16f, 0.14f);
+            {
+                float left = windowLeft + windowWidth * 0.5f - 1.0f;
+                float bottom = windowBottom + 3.0f;
+                float right = left + 2.0f;
+                float top = windowBottom + windowHeight - 3.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            {
+                float left = windowLeft + 3.0f;
+                float bottom = windowBottom + windowHeight * 0.5f - 1.0f;
+                float right = windowLeft + windowWidth - 3.0f;
+                float top = bottom + 2.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+        }
+
+        {
+            float windowLeft = garageStartX + 12.0f;
+            float windowBottom = garageBaseY + 98.0f;
+            float windowWidth = 42.0f;
+            float windowHeight = 38.0f;
+            glColor3f(0.20f, 0.18f, 0.16f);
+            {
+                float left = windowLeft;
+                float bottom = windowBottom;
+                float right = left + windowWidth;
+                float top = bottom + windowHeight;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            if (morning) glColor3f(0.60f, 0.74f, 0.84f);
+            else if (houseLightOn) glColor3f(0.98f, 0.88f, 0.54f);
+            else glColor3f(0.12f, 0.14f, 0.18f);
+            {
+                float left = windowLeft + 3.0f;
+                float bottom = windowBottom + 3.0f;
+                float right = windowLeft + windowWidth - 3.0f;
+                float top = windowBottom + windowHeight - 3.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            glColor3f(0.18f, 0.16f, 0.14f);
+            {
+                float left = windowLeft + windowWidth * 0.5f - 1.0f;
+                float bottom = windowBottom + 3.0f;
+                float right = left + 2.0f;
+                float top = windowBottom + windowHeight - 3.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            {
+                float left = windowLeft + 3.0f;
+                float bottom = windowBottom + windowHeight * 0.5f - 1.0f;
+                float right = windowLeft + windowWidth - 3.0f;
+                float top = bottom + 2.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+        }
+
+        glColor3f(0.08f, 0.09f, 0.11f);
+        {
+            float left = homeGarageDoorLeftX;
+            float bottom = homeGarageDoorBottomY;
+            float right = left + homeGarageDoorWidth;
+            float top = bottom + homeGarageDoorHeight;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glColor3f(0.46f, 0.48f, 0.52f);
+        {
+            float stripeStep = 126.0f / 6.0f;
+            float stripeW = homeGarageDoorWidth - 16.0f;
+            float stripeH = 2.0f;
+            float stripeLeft = homeGarageDoorLeftX + 8.0f;
+            float stripeY1 = homeGarageDoorBottomY + stripeStep * 1.0f;
+            float stripeY2 = homeGarageDoorBottomY + stripeStep * 2.0f;
+            float stripeY3 = homeGarageDoorBottomY + stripeStep * 3.0f;
+            float stripeY4 = homeGarageDoorBottomY + stripeStep * 4.0f;
+            float stripeY5 = homeGarageDoorBottomY + stripeStep * 5.0f;
+            float stripeRight = stripeLeft + stripeW;
+            float stripeTop = stripeY1 + stripeH;
+            glBegin(GL_QUADS);
+            glVertex2f(stripeLeft, stripeY1);
+            glVertex2f(stripeRight, stripeY1);
+            glVertex2f(stripeRight, stripeTop);
+            glVertex2f(stripeLeft, stripeTop);
+            glEnd();
+            stripeTop = stripeY2 + stripeH;
+            glBegin(GL_QUADS);
+            glVertex2f(stripeLeft, stripeY2);
+            glVertex2f(stripeRight, stripeY2);
+            glVertex2f(stripeRight, stripeTop);
+            glVertex2f(stripeLeft, stripeTop);
+            glEnd();
+            stripeTop = stripeY3 + stripeH;
+            glBegin(GL_QUADS);
+            glVertex2f(stripeLeft, stripeY3);
+            glVertex2f(stripeRight, stripeY3);
+            glVertex2f(stripeRight, stripeTop);
+            glVertex2f(stripeLeft, stripeTop);
+            glEnd();
+            stripeTop = stripeY4 + stripeH;
+            glBegin(GL_QUADS);
+            glVertex2f(stripeLeft, stripeY4);
+            glVertex2f(stripeRight, stripeY4);
+            glVertex2f(stripeRight, stripeTop);
+            glVertex2f(stripeLeft, stripeTop);
+            glEnd();
+            stripeTop = stripeY5 + stripeH;
+            glBegin(GL_QUADS);
+            glVertex2f(stripeLeft, stripeY5);
+            glVertex2f(stripeRight, stripeY5);
+            glVertex2f(stripeRight, stripeTop);
+            glVertex2f(stripeLeft, stripeTop);
+            glEnd();
+        }
+    }
+
+    {
+        float carX = scene1_carPosX;
+        float carY = scene1_carPosY;
+        float carR = 0.84f;
+        float carG = 0.20f;
+        float carB = 0.18f;
+        float wheelAngle = wheelRotationAngle;
+        bool headlightOn = false;
+        bool tailLightOn = false;
+        bool facingRight = true;
+
+        glPushMatrix();
+        glTranslatef(carX, carY, 0.0f);
+        if (!facingRight) glScalef(-1.0f, 1.0f, 1.0f);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(0.0f, 0.0f, 0.0f, 0.24f);
+        {
+            float centerX = 0.0f;
+            float centerY = -10.0f;
+            float radiusX = 74.0f;
+            float radiusY = 11.0f;
+            float step = 2.0f * PI_VALUE / 36.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 24.0f) * radiusX, centerY + sin(step * 24.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 25.0f) * radiusX, centerY + sin(step * 25.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 26.0f) * radiusX, centerY + sin(step * 26.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 27.0f) * radiusX, centerY + sin(step * 27.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 28.0f) * radiusX, centerY + sin(step * 28.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 29.0f) * radiusX, centerY + sin(step * 29.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 30.0f) * radiusX, centerY + sin(step * 30.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 31.0f) * radiusX, centerY + sin(step * 31.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 32.0f) * radiusX, centerY + sin(step * 32.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 33.0f) * radiusX, centerY + sin(step * 33.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 34.0f) * radiusX, centerY + sin(step * 34.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 35.0f) * radiusX, centerY + sin(step * 35.0f) * radiusY);
+            glEnd();
+        }
+
+        glColor3f(carR, carG, carB);
+        {
+            float left = -71.0f;
+            float bottom = 0.0f;
+            float right = 71.0f;
+            float top = 32.0f;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        glBegin(GL_POLYGON);
+        glVertex2f(-38.0f, 32.0f);
+        glVertex2f(42.0f, 32.0f);
+        glVertex2f(20.0f, 58.0f);
+        glVertex2f(-20.0f, 58.0f);
+        glEnd();
+        glColor3f(0.64f, 0.84f, 0.96f);
+        glBegin(GL_POLYGON);
+        glVertex2f(-30.0f, 35.0f);
+        glVertex2f(34.0f, 35.0f);
+        glVertex2f(16.0f, 54.0f);
+        glVertex2f(-14.0f, 54.0f);
+        glEnd();
+        glColor3f(0.18f, 0.18f, 0.20f);
+        {
+            float left = 64.0f;
+            float bottom = 8.0f;
+            float right = left + 10.0f;
+            float top = bottom + 14.0f;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+        {
+            float left = -74.0f;
+            float bottom = 8.0f;
+            float right = left + 10.0f;
+            float top = bottom + 14.0f;
+            glBegin(GL_QUADS);
+            glVertex2f(left, bottom);
+            glVertex2f(right, bottom);
+            glVertex2f(right, top);
+            glVertex2f(left, top);
+            glEnd();
+        }
+
+        glPushMatrix();
+        glTranslatef(-42.0f, -2.0f, 0.0f);
+        glRotatef(wheelAngle, 0.0f, 0.0f, 1.0f);
+        glColor3f(0.05f, 0.05f, 0.06f);
+        {
+            float centerX = 0.0f;
+            float centerY = 0.0f;
+            float radiusX = 16.0f;
+            float radiusY = 16.0f;
+            float step = 2.0f * PI_VALUE / 36.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 24.0f) * radiusX, centerY + sin(step * 24.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 25.0f) * radiusX, centerY + sin(step * 25.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 26.0f) * radiusX, centerY + sin(step * 26.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 27.0f) * radiusX, centerY + sin(step * 27.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 28.0f) * radiusX, centerY + sin(step * 28.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 29.0f) * radiusX, centerY + sin(step * 29.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 30.0f) * radiusX, centerY + sin(step * 30.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 31.0f) * radiusX, centerY + sin(step * 31.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 32.0f) * radiusX, centerY + sin(step * 32.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 33.0f) * radiusX, centerY + sin(step * 33.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 34.0f) * radiusX, centerY + sin(step * 34.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 35.0f) * radiusX, centerY + sin(step * 35.0f) * radiusY);
+            glEnd();
+        }
+        glColor3f(0.15f, 0.15f, 0.17f);
+        {
+            float centerX = 0.0f;
+            float centerY = 0.0f;
+            float radiusX = 12.0f;
+            float radiusY = 12.0f;
+            float step = 2.0f * PI_VALUE / 30.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 24.0f) * radiusX, centerY + sin(step * 24.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 25.0f) * radiusX, centerY + sin(step * 25.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 26.0f) * radiusX, centerY + sin(step * 26.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 27.0f) * radiusX, centerY + sin(step * 27.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 28.0f) * radiusX, centerY + sin(step * 28.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 29.0f) * radiusX, centerY + sin(step * 29.0f) * radiusY);
+            glEnd();
+        }
+        glColor3f(0.74f, 0.74f, 0.78f);
+        {
+            float centerX = 0.0f;
+            float centerY = 0.0f;
+            float radiusX = 7.0f;
+            float radiusY = 7.0f;
+            float step = 2.0f * PI_VALUE / 28.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 24.0f) * radiusX, centerY + sin(step * 24.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 25.0f) * radiusX, centerY + sin(step * 25.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 26.0f) * radiusX, centerY + sin(step * 26.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 27.0f) * radiusX, centerY + sin(step * 27.0f) * radiusY);
+            glEnd();
+        }
+        glColor3f(0.95f, 0.95f, 0.96f);
+        glLineWidth(2.0f);
+        glBegin(GL_LINES);
+        glVertex2f(-8.0f, 0.0f);
+        glVertex2f(8.0f, 0.0f);
+        glVertex2f(0.0f, -8.0f);
+        glVertex2f(0.0f, 8.0f);
+        glVertex2f(-5.5f, -5.5f);
+        glVertex2f(5.5f, 5.5f);
+        glVertex2f(-5.5f, 5.5f);
+        glVertex2f(5.5f, -5.5f);
+        glEnd();
+        glLineWidth(1.0f);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef(42.0f, -2.0f, 0.0f);
+        glRotatef(wheelAngle, 0.0f, 0.0f, 1.0f);
+        glColor3f(0.05f, 0.05f, 0.06f);
+        {
+            float centerX = 0.0f;
+            float centerY = 0.0f;
+            float radiusX = 16.0f;
+            float radiusY = 16.0f;
+            float step = 2.0f * PI_VALUE / 36.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 24.0f) * radiusX, centerY + sin(step * 24.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 25.0f) * radiusX, centerY + sin(step * 25.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 26.0f) * radiusX, centerY + sin(step * 26.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 27.0f) * radiusX, centerY + sin(step * 27.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 28.0f) * radiusX, centerY + sin(step * 28.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 29.0f) * radiusX, centerY + sin(step * 29.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 30.0f) * radiusX, centerY + sin(step * 30.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 31.0f) * radiusX, centerY + sin(step * 31.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 32.0f) * radiusX, centerY + sin(step * 32.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 33.0f) * radiusX, centerY + sin(step * 33.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 34.0f) * radiusX, centerY + sin(step * 34.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 35.0f) * radiusX, centerY + sin(step * 35.0f) * radiusY);
+            glEnd();
+        }
+        glColor3f(0.15f, 0.15f, 0.17f);
+        {
+            float centerX = 0.0f;
+            float centerY = 0.0f;
+            float radiusX = 12.0f;
+            float radiusY = 12.0f;
+            float step = 2.0f * PI_VALUE / 30.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 24.0f) * radiusX, centerY + sin(step * 24.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 25.0f) * radiusX, centerY + sin(step * 25.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 26.0f) * radiusX, centerY + sin(step * 26.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 27.0f) * radiusX, centerY + sin(step * 27.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 28.0f) * radiusX, centerY + sin(step * 28.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 29.0f) * radiusX, centerY + sin(step * 29.0f) * radiusY);
+            glEnd();
+        }
+        glColor3f(0.74f, 0.74f, 0.78f);
+        {
+            float centerX = 0.0f;
+            float centerY = 0.0f;
+            float radiusX = 7.0f;
+            float radiusY = 7.0f;
+            float step = 2.0f * PI_VALUE / 28.0f;
+            glBegin(GL_POLYGON);
+            glVertex2f(centerX + cos(step * 0.0f) * radiusX, centerY + sin(step * 0.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 1.0f) * radiusX, centerY + sin(step * 1.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 2.0f) * radiusX, centerY + sin(step * 2.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 3.0f) * radiusX, centerY + sin(step * 3.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 4.0f) * radiusX, centerY + sin(step * 4.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 5.0f) * radiusX, centerY + sin(step * 5.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 6.0f) * radiusX, centerY + sin(step * 6.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 7.0f) * radiusX, centerY + sin(step * 7.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 8.0f) * radiusX, centerY + sin(step * 8.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 9.0f) * radiusX, centerY + sin(step * 9.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 10.0f) * radiusX, centerY + sin(step * 10.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 11.0f) * radiusX, centerY + sin(step * 11.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 12.0f) * radiusX, centerY + sin(step * 12.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 13.0f) * radiusX, centerY + sin(step * 13.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 14.0f) * radiusX, centerY + sin(step * 14.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 15.0f) * radiusX, centerY + sin(step * 15.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 16.0f) * radiusX, centerY + sin(step * 16.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 17.0f) * radiusX, centerY + sin(step * 17.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 18.0f) * radiusX, centerY + sin(step * 18.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 19.0f) * radiusX, centerY + sin(step * 19.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 20.0f) * radiusX, centerY + sin(step * 20.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 21.0f) * radiusX, centerY + sin(step * 21.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 22.0f) * radiusX, centerY + sin(step * 22.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 23.0f) * radiusX, centerY + sin(step * 23.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 24.0f) * radiusX, centerY + sin(step * 24.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 25.0f) * radiusX, centerY + sin(step * 25.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 26.0f) * radiusX, centerY + sin(step * 26.0f) * radiusY);
+            glVertex2f(centerX + cos(step * 27.0f) * radiusX, centerY + sin(step * 27.0f) * radiusY);
+            glEnd();
+        }
+        glColor3f(0.95f, 0.95f, 0.96f);
+        glLineWidth(2.0f);
+        glBegin(GL_LINES);
+        glVertex2f(-8.0f, 0.0f);
+        glVertex2f(8.0f, 0.0f);
+        glVertex2f(0.0f, -8.0f);
+        glVertex2f(0.0f, 8.0f);
+        glVertex2f(-5.5f, -5.5f);
+        glVertex2f(5.5f, 5.5f);
+        glVertex2f(-5.5f, 5.5f);
+        glVertex2f(5.5f, -5.5f);
+        glEnd();
+        glLineWidth(1.0f);
+        glPopMatrix();
+
+        if (headlightOn) {
+            glColor4f(1.0f, 0.96f, 0.42f, 0.30f);
+            glBegin(GL_TRIANGLES);
+            glVertex2f(70.0f, 20.0f);
+            glVertex2f(186.0f, 58.0f);
+            glVertex2f(186.0f, -10.0f);
+            glEnd();
+            glColor3f(1.0f, 1.0f, 0.72f);
+            {
+                float left = 66.0f;
+                float bottom = 14.0f;
+                float right = left + 8.0f;
+                float top = bottom + 8.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+        }
+        if (tailLightOn) {
+            glColor3f(0.95f, 0.08f, 0.08f);
+            {
+                float left = -74.0f;
+                float bottom = 16.0f;
+                float right = left + 8.0f;
+                float top = bottom + 8.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+            {
+                float left = -74.0f;
+                float bottom = 6.0f;
+                float right = left + 8.0f;
+                float top = bottom + 8.0f;
+                glBegin(GL_QUADS);
+                glVertex2f(left, bottom);
+                glVertex2f(right, bottom);
+                glVertex2f(right, top);
+                glVertex2f(left, top);
+                glEnd();
+            }
+        }
+        glDisable(GL_BLEND);
+        glPopMatrix();
+    }
 }
 
 void scene2() {
@@ -1395,58 +3037,117 @@ void nextScene() {
     resetScene(currentScene);
 }
 
-void anim1() {
-    if (carState_scene1==0) carState_scene1=1;
-    if (carState_scene1==1) {
-        float step = 1.6f * animationSpeed;
-        scene1_carPosY -= step; wheelRotationAngle -= step*2.0f;
-        if (scene1_carPosY <= scene1RoadTravelY) { scene1_carPosY = scene1RoadTravelY; carState_scene1=2; }
-    }
-    if (carState_scene1==2) {
-        float step = 2.0f * animationSpeed;
-        scene1_carPosX += step; wheelRotationAngle -= step*2.0f;
-        if (scene1_carPosX > scene1ExitCheckX) scene1HasCarExitedScreen = true;
+void startScene1CarMovement() {
+    if (carState_scene1 == 0) carState_scene1 = 1;
+}
+
+void moveScene1CarDownToRoad() {
+    if (carState_scene1 != 1) return;
+    float baseSpeed = 1.6f;
+    float step = baseSpeed * animationSpeed;
+    float rotationStep = step * 2.0f;
+    scene1_carPosY -= step;
+    wheelRotationAngle -= rotationStep;
+    if (scene1_carPosY <= scene1RoadTravelY) {
+        scene1_carPosY = scene1RoadTravelY;
+        carState_scene1 = 2;
     }
 }
 
-void anim2() {
+void moveScene1CarAlongRoad() {
+    if (carState_scene1 != 2) return;
+    float baseSpeed = 2.0f;
+    float step = baseSpeed * animationSpeed;
+    float rotationStep = step * 2.0f;
+    scene1_carPosX += step;
+    wheelRotationAngle -= rotationStep;
+    if (scene1_carPosX > scene1ExitCheckX) scene1HasCarExitedScreen = true;
+}
+
+void computeScene2TrafficSpeeds(float &speedA, float &speedB, float &speedC) {
     float trafficPulse = sin(sceneFrameCounter * 0.035f);
-    float sA = 3.25f + 0.32f * trafficPulse;
-    float sB = 2.05f + 0.18f * sin(sceneFrameCounter * 0.026f + 1.7f);
-    float sC = 3.85f + 0.42f * sin(sceneFrameCounter * 0.031f + 3.2f);
-    if (trafficCarPositionX_scene2_A > 470 && trafficCarPositionX_scene2_A < 640) sA *= 0.72f;
-    if (trafficCarPositionX_scene2_C > 380 && trafficCarPositionX_scene2_C < 540) sC *= 0.82f;
-    trafficCarPositionX_scene2_A += sA;
-    trafficCarPositionX_scene2_B -= sB;
-    trafficCarPositionX_scene2_C += sC;
+    float baseA = 3.25f;
+    float baseB = 2.05f;
+    float baseC = 3.85f;
+    float extraA = 0.32f * trafficPulse;
+    float extraB = 0.18f * sin(sceneFrameCounter * 0.026f + 1.7f);
+    float extraC = 0.42f * sin(sceneFrameCounter * 0.031f + 3.2f);
+    speedA = baseA + extraA;
+    speedB = baseB + extraB;
+    speedC = baseC + extraC;
+    if (trafficCarPositionX_scene2_A > 470 && trafficCarPositionX_scene2_A < 640) speedA *= 0.72f;
+    if (trafficCarPositionX_scene2_C > 380 && trafficCarPositionX_scene2_C < 540) speedC *= 0.82f;
+}
+
+void moveScene2TrafficPositions(float speedA, float speedB, float speedC) {
+    trafficCarPositionX_scene2_A += speedA;
+    trafficCarPositionX_scene2_B -= speedB;
+    trafficCarPositionX_scene2_C += speedC;
     if (trafficCarPositionX_scene2_A > 1440) trafficCarPositionX_scene2_A = -220;
     if (trafficCarPositionX_scene2_B < -280) trafficCarPositionX_scene2_B = 1480;
     if (trafficCarPositionX_scene2_C > 1500) trafficCarPositionX_scene2_C = -360;
-    trafficCarWheelAngle_scene2_A -= sA*5.0f;
-    trafficCarWheelAngle_scene2_B += sB*4.0f;
-    trafficCarWheelAngle_scene2_C -= sC*4.8f;
-    roadDashOffset_scene2 = wrap(roadDashOffset_scene2 - 1.9f, 0, 92);
-    parallaxOffset_scene2 -= 0.55f;
+}
+
+void spinScene2TrafficWheels(float speedA, float speedB, float speedC) {
+    trafficCarWheelAngle_scene2_A -= speedA * 5.0f;
+    trafficCarWheelAngle_scene2_B += speedB * 4.0f;
+    trafficCarWheelAngle_scene2_C -= speedC * 4.8f;
+}
+
+void moveScene2RoadDashes() {
+    float dashSpeed = 1.9f;
+    roadDashOffset_scene2 = wrap(roadDashOffset_scene2 - dashSpeed, 0, 92);
+}
+
+void moveScene2Parallax() {
+    float drift = 0.55f;
+    parallaxOffset_scene2 -= drift;
     if (parallaxOffset_scene2 < -220) parallaxOffset_scene2 += 220;
 }
 
+void raiseScene3BarrierIfNeeded() {
+    if (carPositionX_scene3 <= 470) return;
+    float newAngle = barrierRotationAngle_scene3 + 2.8f;
+    barrierRotationAngle_scene3 = clamp(newAngle, 0, 85);
+}
+
+void anim1() {
+    startScene1CarMovement();
+    moveScene1CarDownToRoad();
+    moveScene1CarAlongRoad();
+}
+
+void anim2() {
+    float speedA = 0.0f;
+    float speedB = 0.0f;
+    float speedC = 0.0f;
+    computeScene2TrafficSpeeds(speedA, speedB, speedC);
+    moveScene2TrafficPositions(speedA, speedB, speedC);
+    spinScene2TrafficWheels(speedA, speedB, speedC);
+    moveScene2RoadDashes();
+    moveScene2Parallax();
+}
+
 void anim3() {
-    float speed = 2.65f;
+    float baseSpeed = 2.65f;
     if (carPositionX_scene3 < 500) {
-        carPositionX_scene3 += speed;
-        carPositionY_scene3 = 96;
-        wheelRotationAngle_scene3 -= speed*4.2f;
+        carPositionX_scene3 += baseSpeed;
+        carPositionY_scene3 = 96.0f;
+        wheelRotationAngle_scene3 -= baseSpeed * 4.2f;
     } else if (carPositionX_scene3 < 760) {
         float drivewaySpeed = 1.85f;
         carPositionX_scene3 += drivewaySpeed;
-        float t = clamp((carPositionX_scene3 - 500.0f) / 260.0f, 0.0f, 1.0f);
-        carPositionY_scene3 = 96.0f + t * 134.0f;
-        wheelRotationAngle_scene3 -= drivewaySpeed*4.0f;
+        float progress = (carPositionX_scene3 - 500.0f) / 260.0f;
+        float t = clamp(progress, 0.0f, 1.0f);
+        float startY = 96.0f;
+        float rise = 134.0f;
+        carPositionY_scene3 = startY + t * rise;
+        wheelRotationAngle_scene3 -= drivewaySpeed * 4.0f;
     } else {
-        carPositionX_scene3 = 760;
-        carPositionY_scene3 = 230;
+        carPositionX_scene3 = 760.0f;
+        carPositionY_scene3 = 230.0f;
     }
-    if (carPositionX_scene3 > 470) barrierRotationAngle_scene3 = clamp(barrierRotationAngle_scene3+2.8f, 0,85);
+    raiseScene3BarrierIfNeeded();
 }
 
 void anim4() {
