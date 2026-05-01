@@ -37,6 +37,7 @@
 		<Linker>
 			<Add library="freeglut" />
 			<Add library="opengl32" />
+			<Add library="glu32" />
 			<Add library="winmm" />
 			<Add library="gdi32" />
 			<Add directory="C:/Program Files/CodeBlocks/MinGW/x86_64-w64-mingw32/lib" />
