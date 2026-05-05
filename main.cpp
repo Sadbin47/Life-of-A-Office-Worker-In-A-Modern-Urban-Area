@@ -309,10 +309,43 @@ void moonSceneHome(float cx, float cy) {
 }
 
 void stars() {
-    glPointSize(2.8f);
-    glBegin(GL_POINTS);
-    for (int i = 0; i < 100; i++) { glVertex2f(rand() % 1280, rand() % 720); }
-    glEnd();
+    const int STAR_COUNT = 150;
+    static float starX[STAR_COUNT];
+    static float starY[STAR_COUNT];
+    static float starSize[STAR_COUNT];
+    static bool initialized = false;
+
+    if (!initialized) {
+        for (int i = 0; i < STAR_COUNT; i++) {
+            starX[i] = rand() % WINDOW_WIDTH;
+            starY[i] = 350 + (rand() % (WINDOW_HEIGHT - 350));
+            starSize[i] = 1.0f + (rand() % 20) / 10.0f;
+        }
+        initialized = true;
+    }
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+    for (int i = 0; i < STAR_COUNT; i++) {
+        float twinkle = 0.5f + 0.5f * sin(scene9ParkedFrameCounter * 0.05f + i);
+
+        glPointSize(starSize[i]);
+        glColor4f(1.0f, 1.0f, 0.9f, twinkle);
+        glBegin(GL_POINTS);
+            glVertex2f(starX[i], starY[i]);
+        glEnd();
+
+        if (i % 10 == 0) {
+            glColor4f(1.0f, 1.0f, 1.0f, 0.4f * twinkle);
+            glBegin(GL_LINES);
+                glVertex2f(starX[i] - 6, starY[i]); glVertex2f(starX[i] + 6, starY[i]);
+                glVertex2f(starX[i], starY[i] - 6); glVertex2f(starX[i], starY[i] + 6);
+            glEnd();
+        }
+    }
+
+    glDisable(GL_BLEND);
 }
 
 void initRain() { for (int i = 0; i < RAIN_DROP_COUNT; i++) { rainDropX[i] = rand() % WINDOW_WIDTH; rainDropY[i] = rand() % WINDOW_HEIGHT; } }
@@ -577,6 +610,131 @@ void drawCarScaled(float posX, float posY, float colorR, float colorG, float col
     glTranslatef(posX, posY, 0.0f);
     glScalef(scale, scale, 1.0f);
     drawCar(0, 0, colorR, colorG, colorB, wheelAngle, isHeadlightOn, isTaillightOn, isFacingRight);
+    glPopMatrix();
+}
+
+void drawTrafficCarVariant(float posX, float posY, float colorR, float colorG, float colorB, float wheelAngle, bool isHeadlightOn, bool isTaillightOn, bool isFacingRight, int variant) {
+    int style = variant % 4;
+
+    glPushMatrix();
+    glTranslatef(posX, posY, 0.0f);
+    if (!isFacingRight) glScalef(-1.0f, 1.0f, 1.0f);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.22f);
+
+    if (style == 0) ellipse(0.0f, -10.0f, 66.0f, 10.0f, 32);
+    else if (style == 1) ellipse(0.0f, -10.0f, 72.0f, 10.5f, 32);
+    else if (style == 2) ellipse(0.0f, -10.0f, 76.0f, 11.0f, 32);
+    else ellipse(0.0f, -10.0f, 62.0f, 10.0f, 32);
+
+    glDisable(GL_BLEND);
+
+    if (style == 0) {
+        glColor3f(colorR, colorG, colorB);
+        rect(-66.0f, 0.0f, 132.0f, 26.0f);
+        glBegin(GL_POLYGON);
+        glVertex2f(-32.0f, 26.0f);
+        glVertex2f(36.0f, 26.0f);
+        glVertex2f(14.0f, 48.0f);
+        glVertex2f(-16.0f, 48.0f);
+        glEnd();
+
+        glColor3f(0.68f, 0.84f, 0.95f);
+        glBegin(GL_POLYGON);
+        glVertex2f(-24.0f, 29.0f);
+        glVertex2f(28.0f, 29.0f);
+        glVertex2f(10.0f, 45.0f);
+        glVertex2f(-12.0f, 45.0f);
+        glEnd();
+
+        glColor3f(colorR * 0.82f, colorG * 0.82f, colorB * 0.82f);
+        rect(-50.0f, 8.0f, 18.0f, 10.0f);
+        wheel(-38.0f, -1.0f, wheelAngle);
+        wheel(38.0f, -1.0f, wheelAngle);
+    } else if (style == 1) {
+        glColor3f(colorR, colorG, colorB);
+        rect(-74.0f, 0.0f, 148.0f, 34.0f);
+        rect(-48.0f, 34.0f, 86.0f, 24.0f);
+
+        glColor3f(0.70f, 0.82f, 0.92f);
+        rect(-40.0f, 38.0f, 28.0f, 14.0f);
+        rect(-8.0f, 38.0f, 24.0f, 14.0f);
+        rect(20.0f, 38.0f, 12.0f, 14.0f);
+
+        glColor3f(colorR * 0.75f, colorG * 0.75f, colorB * 0.75f);
+        rect(36.0f, 8.0f, 24.0f, 14.0f);
+        rect(-62.0f, 10.0f, 12.0f, 12.0f);
+        wheel(-42.0f, -2.0f, wheelAngle);
+        wheel(42.0f, -2.0f, wheelAngle);
+    } else if (style == 2) {
+        glColor3f(colorR, colorG, colorB);
+        rect(-76.0f, 0.0f, 152.0f, 30.0f);
+        glBegin(GL_POLYGON);
+        glVertex2f(-40.0f, 30.0f);
+        glVertex2f(44.0f, 30.0f);
+        glVertex2f(26.0f, 56.0f);
+        glVertex2f(-18.0f, 56.0f);
+        glEnd();
+
+        glColor3f(colorR * 0.82f, colorG * 0.82f, colorB * 0.82f);
+        rect(-70.0f, 18.0f, 18.0f, 8.0f);
+        rect(56.0f, 18.0f, 14.0f, 8.0f);
+
+        glColor3f(0.66f, 0.82f, 0.94f);
+        glBegin(GL_POLYGON);
+        glVertex2f(-28.0f, 34.0f);
+        glVertex2f(32.0f, 34.0f);
+        glVertex2f(18.0f, 51.0f);
+        glVertex2f(-14.0f, 51.0f);
+        glEnd();
+        rect(-2.0f, 34.0f, 3.0f, 17.0f);
+
+        wheel(-46.0f, -2.0f, wheelAngle);
+        wheel(46.0f, -2.0f, wheelAngle);
+    } else {
+        glColor3f(colorR, colorG, colorB);
+        rect(-62.0f, 0.0f, 124.0f, 32.0f);
+        rect(-34.0f, 32.0f, 64.0f, 28.0f);
+
+        glColor3f(colorR * 0.72f, colorG * 0.72f, colorB * 0.72f);
+        rect(-52.0f, 22.0f, 14.0f, 8.0f);
+        rect(40.0f, 22.0f, 12.0f, 8.0f);
+
+        glColor3f(0.72f, 0.84f, 0.94f);
+        rect(-26.0f, 36.0f, 20.0f, 16.0f);
+        rect(0.0f, 36.0f, 20.0f, 16.0f);
+        glColor3f(0.18f, 0.18f, 0.20f);
+        rect(-3.0f, 36.0f, 4.0f, 16.0f);
+
+        wheel(-34.0f, -2.0f, wheelAngle);
+        wheel(34.0f, -2.0f, wheelAngle);
+    }
+
+    glColor3f(0.18f, 0.18f, 0.20f);
+    rect(58.0f, 8.0f, 8.0f, 10.0f);
+    rect(-66.0f, 8.0f, 8.0f, 10.0f);
+
+    if (isHeadlightOn) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(1.0f, 0.96f, 0.42f, 0.22f);
+        glBegin(GL_TRIANGLES);
+        glVertex2f(64.0f, 18.0f);
+        glVertex2f(170.0f, 48.0f);
+        glVertex2f(170.0f, -6.0f);
+        glEnd();
+        glDisable(GL_BLEND);
+        glColor3f(1.0f, 1.0f, 0.72f);
+        rect(62.0f, 12.0f, 6.0f, 7.0f);
+    }
+
+    if (isTaillightOn) {
+        glColor3f(0.95f, 0.08f, 0.08f);
+        rect(-68.0f, 12.0f, 6.0f, 7.0f);
+    }
+
     glPopMatrix();
 }
 
@@ -1624,19 +1782,26 @@ void scene2() {
     trafficLight(100, 150, true);
     trafficLight(1200, 150, false);
     for (int i = 0; i < 8; i++) {
-        drawCar(
+        drawTrafficCarVariant(
             scene2_aiCarsX[i], scene2_aiCarsY[i],
             scene2_aiCarColors[i][0], scene2_aiCarColors[i][1], scene2_aiCarColors[i][2],
-            wheelRotationAngle, false, false, true
+            wheelRotationAngle, false, false, true, i
         );
     }
     drawCar(scene2_redCarPosX, scene2_redCarPosY, 0.84f, 0.20f, 0.18f, wheelRotationAngle, false, false, true);
 }
 
 void scene3() {
-    gradSky(0.68f, 0.88f, 0.99f, 0.88f, 0.96f, 1.00f);
-    sun(900, 600);
-    cloud(300, 620);
+    if (!isRainEnabled) {
+        gradSky(0.68f, 0.88f, 0.99f, 0.88f, 0.96f, 1.00f);
+        sun(900, 600);
+        cloud(300, 620);
+    } else {
+        gradSky(0.24f, 0.26f, 0.29f, 0.36f, 0.38f, 0.41f);
+        cloud(260, 632);
+        cloud(560, 654);
+        cloud(860, 620);
+    }
     tree(80, 155);
     tree(1100, 160);
     officeBuildingExterior(false);
@@ -1727,10 +1892,10 @@ void scene8() {
     trafficLight(100, 150, false);
     trafficLight(1200, 150, true);
     for (int i = 0; i < 5; i++) {
-        drawCar(
+        drawTrafficCarVariant(
             scene8_aiCarsX[i], scene8_aiCarsY[i],
             scene8_aiCarColors[i][0], scene8_aiCarColors[i][1], scene8_aiCarColors[i][2],
-            wheelRotationAngle, true, true, true
+            wheelRotationAngle, true, true, true, i + 1
         );
     }
     drawCar(scene8_redCarPosX, scene8_redCarPosY, 0.84f, 0.20f, 0.18f, wheelRotationAngle, true, true, true);
@@ -1743,7 +1908,7 @@ void scene9() {
     moonSceneHome(1050.0f, 620.0f);
 
     homeGround(true);
-    drawFireflies();
+    if (!isRainEnabled) drawFireflies();
 
     tree(60.0f, 120.0f);
     tree(1120.0f, 125.0f);
@@ -1751,7 +1916,7 @@ void scene9() {
     tree(980.0f, 128.0f);
 
     house(isHouseLightOn);
-    bool headOn = (carState_scene9 != 2);
+    bool headOn = (carState_scene9 < 2);
     drawCar(scene9_carPosX, scene9_carPosY, 0.84f, 0.20f, 0.18f, wheelRotationAngle, headOn, true, true);
     drawHeadlightCone(scene9_carPosX, scene9_carPosY, headOn);
     drawGarageDoor();
