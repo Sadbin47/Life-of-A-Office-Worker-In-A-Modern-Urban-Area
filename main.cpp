@@ -26,12 +26,20 @@ float animationSpeed = 1.0f;
 float rainDropX[RAIN_DROP_COUNT];
 float rainDropY[RAIN_DROP_COUNT];
 
+float grassSwayTimer = 0.0f;
+
 float sunHorizontalOffset = 0.0f;
 float cloudOffsetX_layerA = 0.0f;
 float cloudOffsetX_layerB = 0.0f;
+float cloudOffsetX_layerC = 0.0f;
+float cloudDriftSpeedA = 0.0f;
+float cloudDriftSpeedB = 0.0f;
+float cloudDriftSpeedC = 0.0f;
 
 float wheelRotationAngle = 0.0f;
 float garageDoorOpenAmount = 0.0f;
+float sunGlowPulse = 0.0f;
+float sunGlowDirection = 1.0f;
 
 // ============================================
 // SCENE 1 VARIABLES
@@ -40,6 +48,7 @@ float scene1_carPosX = 400.0f;
 float scene1_carPosY = 50.0f;
 int carState_scene1 = 0;
 bool scene1HasCarExitedScreen = false;
+float scene1_carAngle = 0.0f;
 
 // ============================================
 // SCENE 2 VARIABLES
@@ -124,9 +133,12 @@ float scene9_carPosY = 50.0f;
 int carState_scene9 = 1;
 bool scene9ParkingCompleted = false;
 bool isHouseLightOn = true;
+float scene9_carAngle = 0.0f;
 
 int sceneFrameCounter = 0;
 int scene9ParkedFrameCounter = 0;
+float windowFlickerTimer = 0.0f;
+float windowFlickerAmount[10];
 
 // ============================================
 // BASIC SHAPES
@@ -185,6 +197,32 @@ void cloud(float cx, float cy) {
     circle(cx + 2, cy + 18, 20, 24);
 }
 
+void cloudSceneHome(float cx, float cy, float alpha) {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    if (isRainEnabled) {
+        glColor4f(0.45f, 0.49f, 0.53f, alpha);
+    } else {
+        glColor4f(0.96f, 0.96f, 0.98f, alpha);
+    }
+
+    circle(cx, cy, 32, 32);
+    circle(cx - 35, cy - 6, 26, 28);
+    circle(cx + 35, cy - 4, 28, 28);
+    circle(cx + 5, cy + 20, 24, 28);
+    circle(cx - 20, cy + 12, 20, 24);
+    circle(cx + 22, cy + 14, 22, 24);
+
+    if (!isRainEnabled) {
+        glColor4f(1.0f, 1.0f, 1.0f, alpha * 0.6f);
+        circle(cx - 5, cy + 16, 16, 20);
+        circle(cx + 8, cy + 22, 12, 18);
+    }
+
+    glDisable(GL_BLEND);
+}
+
 void sun(float cx, float cy) {
     glColor3f(1.0f, 0.92f, 0.32f);
     circle(cx, cy, 36, 36);
@@ -203,11 +241,71 @@ void sun(float cx, float cy) {
     glLineWidth(1);
 }
 
+void sunSceneHome(float cx, float cy) {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    float glow = 0.5f + sunGlowPulse * 0.5f;
+
+    glColor4f(1.0f, 0.95f, 0.5f, 0.1f * glow);
+    circle(cx, cy, 80, 48);
+
+    glColor4f(1.0f, 0.9f, 0.4f, 0.2f * glow);
+    circle(cx, cy, 60, 48);
+
+    glColor4f(1.0f, 0.85f, 0.3f, 0.35f * glow);
+    circle(cx, cy, 48, 48);
+
+    glColor3f(1.0f, 0.92f, 0.32f);
+    circle(cx, cy, 36, 48);
+
+    glColor4f(1.0f, 0.98f, 0.7f, 0.6f);
+    circle(cx, cy, 20, 36);
+
+    glColor4f(1.0f, 0.84f, 0.22f, 0.4f * glow);
+    glLineWidth(2.5f);
+    glBegin(GL_LINES);
+    for (int i = 0; i < 12; i++) {
+        float angle = i * PI_VALUE * 2.0f / 12.0f;
+        float startR = 44.0f;
+        float endR = 58.0f + glow * 10.0f;
+        glVertex2f(cx + cos(angle) * startR, cy + sin(angle) * startR);
+        glVertex2f(cx + cos(angle) * endR, cy + sin(angle) * endR);
+    }
+    glEnd();
+    glLineWidth(1.0f);
+
+    glDisable(GL_BLEND);
+}
+
 void moon(float cx, float cy) {
     glColor3f(0.90f, 0.92f, 0.96f);
     circle(cx, cy, 30, 34);
     glColor3f(0.08f, 0.10f, 0.18f);
     circle(cx + 10, cy + 4, 26, 34);
+}
+
+void moonSceneHome(float cx, float cy) {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glColor4f(0.85f, 0.88f, 0.95f, 0.15f);
+    circle(cx, cy, 50, 48);
+
+    glColor4f(0.88f, 0.90f, 0.94f, 0.3f);
+    circle(cx, cy, 40, 48);
+
+    glColor3f(0.90f, 0.92f, 0.96f);
+    circle(cx, cy, 30, 48);
+
+    glColor3f(0.05f, 0.07f, 0.16f);
+    circle(cx + 10, cy + 4, 26, 48);
+
+    glColor4f(0.7f, 0.72f, 0.78f, 0.2f);
+    circle(cx - 8, cy + 6, 8, 24);
+    circle(cx + 2, cy - 10, 6, 20);
+
+    glDisable(GL_BLEND);
 }
 
 void stars() {
@@ -226,6 +324,130 @@ void drawRain() {
     for (int i = 0; i < RAIN_DROP_COUNT; i++) { glVertex2f(rainDropX[i], rainDropY[i]); glVertex2f(rainDropX[i] + 3.0f, rainDropY[i] -14.0f); }
     glEnd();
     glLineWidth(1.0f);
+}
+
+void drawFireflies() {
+    struct Firefly {
+        float x, y, phase, brightness;
+
+        Firefly() {
+            x = 100.0f + (rand() % 1080);
+            y = 120.0f + (rand() % 500);
+            phase = (rand() % 100) / 100.0f * 2.0f * PI_VALUE;
+            brightness = 0.3f + (rand() % 70) / 100.0f;
+        }
+    };
+
+    static Firefly fireflies[30];
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+    for (int i = 0; i < 30; i++) {
+        Firefly& f = fireflies[i];
+
+        float glow = f.brightness * (0.5f + 0.5f * sin(grassSwayTimer * 0.04f + f.phase));
+
+        f.x += sin(grassSwayTimer * 0.01f + f.phase) * 0.3f;
+        f.y += cos(grassSwayTimer * 0.015f + f.phase) * 0.2f;
+
+        if (f.x < 0) f.x = 1280;
+        if (f.x > 1280) f.x = 0;
+        if (f.y < 110) f.y = 600;
+        if (f.y > 720) f.y = 110;
+
+        glPointSize(8.0f);
+        glColor4f(1.0f, 0.95f, 0.5f, 0.08f * glow);
+        glBegin(GL_POINTS); glVertex2f(f.x, f.y); glEnd();
+
+        glPointSize(4.0f);
+        glColor4f(1.0f, 0.9f, 0.4f, 0.25f * glow);
+        glBegin(GL_POINTS); glVertex2f(f.x, f.y); glEnd();
+
+        glPointSize(2.0f);
+        glColor4f(1.0f, 1.0f, 0.7f, 0.6f * glow);
+        glBegin(GL_POINTS); glVertex2f(f.x, f.y); glEnd();
+    }
+
+    glDisable(GL_BLEND);
+}
+
+void drawGrassField(bool night) {
+    const int GRASS_BLADE_COUNT = 2000;
+    const int PATCH_COUNT = 30;
+
+    static float grassBladeX[GRASS_BLADE_COUNT];
+    static float grassBladeY[GRASS_BLADE_COUNT];
+    static float grassBladeSway[GRASS_BLADE_COUNT];
+
+    static float patchX[PATCH_COUNT];
+    static float patchY[PATCH_COUNT];
+    static float patchR[PATCH_COUNT];
+
+    static bool initialized = false;
+
+    if (!initialized) {
+        for (int i = 0; i < GRASS_BLADE_COUNT; i++) {
+            grassBladeX[i] = rand() % 1280;
+            grassBladeY[i] = 110.0f + (rand() % 190);
+            grassBladeSway[i] = (rand() % 100) / 100.0f;
+        }
+        for (int i = 0; i < PATCH_COUNT; i++) {
+            patchX[i] = rand() % 1280;
+            patchR[i] = 10.0f + (rand() % 20);
+
+            int minY = 110 + (int)patchR[i];
+            int maxY = 300 - (int)patchR[i];
+
+            patchY[i] = minY + (rand() % (maxY - minY));
+        }
+        initialized = true;
+    }
+
+    float baseR = night ? 0.08f : 0.22f;
+    float baseG = night ? 0.18f : 0.48f;
+    float baseB = night ? 0.10f : 0.22f;
+
+    glColor3f(baseR, baseG, baseB);
+    rect(0, 110, 1280, 190);
+
+    float sway = sin(grassSwayTimer * 0.02f) * 3.0f;
+
+    glLineWidth(1.0f);
+    glBegin(GL_LINES);
+    for (int i = 0; i < GRASS_BLADE_COUNT; i++) {
+        float x = grassBladeX[i];
+        float y = grassBladeY[i];
+        float height = 4.0f + grassBladeSway[i] * 8.0f;
+        float shade = 0.6f + grassBladeSway[i] * 0.4f;
+
+        if (night) {
+            glColor3f(baseR * shade, baseG * shade * 1.2f, baseB * shade);
+        } else {
+            glColor3f(baseR * shade, baseG * shade * 1.3f, baseB * shade * 1.2f);
+        }
+
+        float swayX = sway * grassBladeSway[i];
+        glVertex2f(x, y);
+        glVertex2f(x + swayX, y + height);
+    }
+    glEnd();
+    glLineWidth(1.0f);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    if (night) {
+        glColor4f(0.05f, 0.12f, 0.06f, 0.3f);
+    } else {
+        glColor4f(0.15f, 0.35f, 0.15f, 0.25f);
+    }
+
+    for (int i = 0; i < PATCH_COUNT; i++) {
+        circle(patchX[i], patchY[i], patchR[i], 16);
+    }
+
+    glDisable(GL_BLEND);
 }
 
 void tree(float bx, float by) {
@@ -375,83 +597,163 @@ void drawHeadlightCone(float offsetX, float offsetY, bool isOn) {
 // ARCHITECTURE - HOME
 // ============================================
 void homeGround(bool night) {
-    float rR = night ? 0.10f : 0.20f, rG = night ? 0.10f : 0.20f, rB = night ? 0.12f : 0.22f;
-    float gR = night ? 0.12f : 0.26f, gG = night ? 0.24f : 0.58f, gB = night ? 0.14f : 0.30f;
-    float pR = night ? 0.30f : 0.52f, pG = night ? 0.31f : 0.52f, pB = night ? 0.34f : 0.56f;
-    glColor3f(rR, rG, rB);
-    rect(0, 0, 1280, 110);
+    const float homeRoadBottomY = 0.0f;
+    const float homeRoadHeight = 110.0f;
+
+    float roadR = night ? 0.10f : 0.20f;
+    float roadG = night ? 0.10f : 0.20f;
+    float roadB = night ? 0.12f : 0.22f;
+
+    float pathR = night ? 0.30f : 0.52f;
+    float pathG = night ? 0.31f : 0.52f;
+    float pathB = night ? 0.34f : 0.56f;
+
+    glColor3f(roadR, roadG, roadB);
+    rect(0, homeRoadBottomY, 1280, homeRoadHeight);
+
     glColor3f(0.66f, 0.66f, 0.70f);
-    rect(0, 107, 1280, 3);
-    glColor3f(gR, gG, gB);
-    rect(0, 110, 1280, 190);
-    glColor3f(pR, pG, pB);
+    rect(0, (homeRoadBottomY + homeRoadHeight) - 3.0f, 1280.0f, 3.0f);
+
+    drawGrassField(night);
+
+    glColor3f(pathR, pathG, pathB);
     glBegin(GL_POLYGON);
-    glVertex2f(216, 110);
-    glVertex2f(376, 110);
-    glVertex2f(386, 300);
-    glVertex2f(206, 300);
+        glVertex2f(216.0f, 110.0f);
+        glVertex2f(376.0f, 110.0f);
+        glVertex2f(386.0f, 300.0f);
+        glVertex2f(206.0f, 300.0f);
     glEnd();
 }
 
 void houseWindow(float lx, float by, float w, float h, bool morning, bool lit) {
     glColor3f(0.20f, 0.18f, 0.16f);
     rect(lx, by, w, h);
-    if (morning) glColor3f(0.60f, 0.74f, 0.84f);
-    else if (lit) glColor3f(0.98f, 0.88f, 0.54f);
-    else glColor3f(0.12f, 0.14f, 0.18f);
-    rect(lx + 3, by + 3, w - 6, h - 6);
+
+    float flicker = 1.0f;
+    if (lit && !morning) {
+        int windowIdx = (int)(lx + by) % 10;
+        flicker = windowFlickerAmount[windowIdx];
+    }
+
+    if (morning) {
+        glColor3f(0.60f, 0.74f, 0.84f);
+    } else if (lit) {
+        glColor3f(0.98f * flicker, 0.88f * flicker, 0.54f * flicker);
+    } else {
+        glColor3f(0.10f, 0.12f, 0.16f);
+    }
+
+    rect(lx + 3.0f, by + 3.0f, w - 6.0f, h - 6.0f);
+
+    if (morning) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(1.0f, 1.0f, 1.0f, 0.15f);
+        glBegin(GL_TRIANGLES);
+        glVertex2f(lx + 6, by + h - 6);
+        glVertex2f(lx + w - 6, by + h - 6);
+        glVertex2f(lx + 6, by + h - 30);
+        glEnd();
+        glDisable(GL_BLEND);
+    }
+
     glColor3f(0.18f, 0.16f, 0.14f);
-    rect(lx + w / 2 - 1, by + 3, 2, h - 6);
-    rect(lx + 3, by + h / 2 - 1, w - 6, 2);
+    rect(lx + (w / 2.0f) - 1.0f, by + 3.0f, 2.0f, h - 6.0f);
+    rect(lx + 3.0f, by + (h / 2.0f) - 1.0f, w - 6.0f, 2.0f);
 }
 
 void house(bool isLit) {
-    float hX = 464, hY = 300, gX = 200, gY = 300;
+    const float homeHouseLeftX = 450.0f;
+    const float homeHouseBottomY = 300.0f;
+    const float homeGarageLeftX = 200.0f;
+    const float homeGarageBottomY = 300.0f;
+    const float homeGarageDoorLeftX = 206.0f;
+    const float homeGarageDoorWidth = 180.0f;
+
+    const float hBaseX = homeHouseLeftX + 14.0f;
+    const float hBaseY = homeHouseBottomY;
+    const float secW = 300.0f;
+    const float secH = 270.0f;
+    const float gStartX = homeGarageLeftX;
+    const float gBaseY = homeGarageBottomY;
+
     bool morning = (currentScene == 1);
+
     glColor3f(0.12f, 0.13f, 0.15f);
-    rect(hX, hY, 300, 126);
+    rect(hBaseX, hBaseY, secW, 126.0f);
+
     glColor3f(0.18f, 0.20f, 0.22f);
-    rect(hX, hY + 126, 300, 144);
+    rect(hBaseX, hBaseY + 126.0f, secW, secH - 126.0f);
+
     glColor3f(0.14f, 0.15f, 0.17f);
-    rect(gX, gY, 240, 170);
+    rect(gStartX, gBaseY, 240.0f, 170.0f);
+
     glColor3f(0.04f, 0.04f, 0.05f);
     glBegin(GL_TRIANGLES);
-    glVertex2f(hX - 24, hY + 278);
-    glVertex2f(hX + 324, hY + 278);
-    glVertex2f(hX + 150, hY + 370);
+    glVertex2f(hBaseX - 24.0f, hBaseY + secH + 8.0f);
+    glVertex2f(hBaseX + secW + 24.0f, hBaseY + secH + 8.0f);
+    glVertex2f(hBaseX + 150.0f, hBaseY + secH + 100.0f);
     glEnd();
+
     glBegin(GL_TRIANGLES);
-    glVertex2f(gX - 24, gY + 176);
-    glVertex2f(gX + 264, gY + 176);
-    glVertex2f(gX + 120, gY + 230);
+    glVertex2f(gStartX - 24.0f, gBaseY + 176.0f);
+    glVertex2f(gStartX + 264.0f, gBaseY + 176.0f);
+    glVertex2f(gStartX + 120.0f, gBaseY + 230.0f);
     glEnd();
+
     glColor3f(0.40f, 0.18f, 0.10f);
-    rect(hX - 6, hY + 122, 312, 6);
-    rect(gX - 6, gY + 168, 252, 6);
+    rect(hBaseX - 6.0f, hBaseY + 122.0f, secW + 12.0f, 6.0f);
+    rect(gStartX - 6.0f, gBaseY + 168.0f, 252.0f, 6.0f);
+
     glColor3f(0.35f, 0.16f, 0.08f);
-    rect(hX + 94, hY, 56, 120);
+    rect(hBaseX + 94.0f, hBaseY, 56.0f, 120.0f);
+
     glColor3f(0.75f, 0.75f, 0.80f);
-    rect(hX + 140, hY + 50, 4, 32);
-    houseWindow(hX + 16, hY + 30, 28, 82, morning, isLit);
-    houseWindow(hX + 50, hY + 30, 28, 82, morning, isLit);
-    houseWindow(hX + 170, hY + 58, 110, 54, morning, false);
-    houseWindow(hX + 16, hY + 150, 80, 80, morning, isLit);
-    houseWindow(hX + 104, hY + 150, 80, 80, morning, false);
-    houseWindow(hX + 192, hY + 150, 80, 80, morning, isLit);
-    houseWindow(gX + 16, gY + 110, 60, 24, morning, isLit);
-    houseWindow(gX + 164, gY + 110, 60, 24, morning, isLit);
+    rect(hBaseX + 140.0f, hBaseY + 50.0f, 4.0f, 32.0f);
+
+    houseWindow(hBaseX + 16.0f, hBaseY + 30.0f, 28.0f, 82.0f, morning, isLit);
+    houseWindow(hBaseX + 50.0f, hBaseY + 30.0f, 28.0f, 82.0f, morning, isLit);
+    houseWindow(hBaseX + 170.0f, hBaseY + 58.0f, 110.0f, 54.0f, morning, false);
+    houseWindow(hBaseX + 16.0f, hBaseY + 150.0f, 80.0f, 80.0f, morning, isLit);
+    houseWindow(hBaseX + 104.0f, hBaseY + 150.0f, 80.0f, 80.0f, morning, false);
+    houseWindow(hBaseX + 192.0f, hBaseY + 150.0f, 80.0f, 80.0f, morning, isLit);
+
+    houseWindow(gStartX + 16.0f, gBaseY + 110.0f, 60.0f, 24.0f, morning, isLit);
+    houseWindow(gStartX + 164.0f, gBaseY + 110.0f, 60.0f, 24.0f, morning, isLit);
+
     glColor3f(0.02f, 0.02f, 0.02f);
-    rect(206, homeGarageDoorBottomY, 180, homeGarageDoorHeight);
+    rect(homeGarageDoorLeftX, homeGarageDoorBottomY, homeGarageDoorWidth, homeGarageDoorHeight);
+
+    glColor3f(0.30f, 0.15f, 0.08f);
+    rect(hBaseX + 230.0f, hBaseY + secH + 30.0f, 30.0f, 80.0f);
+
+    glColor3f(0.20f, 0.10f, 0.05f);
+    rect(hBaseX + 226.0f, hBaseY + secH + 106.0f, 38.0f, 8.0f);
 }
 
 void drawGarageDoor() {
-    float cH = homeGarageDoorHeight - garageDoorOpenAmount;
-    if (cH <= 0.5f) return;
-    float dY = homeGarageDoorBottomY + garageDoorOpenAmount;
+    const float homeGarageDoorLeftX = 206.0f;
+    const float homeGarageDoorWidth = 180.0f;
+
+    float currentH = homeGarageDoorHeight - garageDoorOpenAmount;
+    if (currentH <= 0.5f) return;
+
+    float doorY = homeGarageDoorBottomY + garageDoorOpenAmount;
+
     glColor3f(0.06f, 0.07f, 0.08f);
-    rect(206, dY, 180, cH);
+    rect(homeGarageDoorLeftX, doorY, homeGarageDoorWidth, currentH);
+
     glColor3f(0.28f, 0.30f, 0.35f);
-    for (int i = 1; i < 8; i++) { float pY = dY + (cH / 8.0f) * i; if (pY < homeGarageDoorBottomY + homeGarageDoorHeight) rect(212, pY, 168, 3); }
+    for (int i = 1; i < 8; i++) {
+        float panelY = doorY + (currentH / 8.0f) * i;
+        if (panelY < homeGarageDoorBottomY + homeGarageDoorHeight) {
+            rect(homeGarageDoorLeftX + 6.0f, panelY, homeGarageDoorWidth - 12.0f, 3.0f);
+        }
+    }
+
+    glColor3f(0.55f, 0.55f, 0.58f);
+    float handleY = doorY + currentH * 0.35f;
+    rect(homeGarageDoorLeftX + homeGarageDoorWidth - 30.0f, handleY - 2.0f, 20.0f, 4.0f);
 }
 
 // ============================================
@@ -1283,12 +1585,26 @@ void audienceMember(float x, float y, int variant) {
 // ============================================
 
 void scene1() {
-    if (!isRainEnabled) { gradSky(0.68f, 0.88f, 0.99f, 0.88f, 0.96f, 1.00f); sun(1020.0f, 620.0f); cloud(210.0f, 620.0f); cloud(520.0f, 650.0f); }
-    else { gradSky(0.24f, 0.26f, 0.29f, 0.36f, 0.38f, 0.41f); cloud(220.0f, 632.0f); cloud(620.0f, 654.0f); }
+    if (!isRainEnabled) {
+        gradSky(0.68f, 0.88f, 0.99f, 0.88f, 0.96f, 1.00f);
+        sunSceneHome(1020.0f + sunHorizontalOffset * 0.20f, 620.0f);
+        cloudSceneHome(210.0f + cloudOffsetX_layerA * 0.70f, 620.0f, 1.0f);
+        cloudSceneHome(520.0f + cloudOffsetX_layerB * 0.60f, 650.0f, 1.0f);
+    }
+    else {
+        gradSky(0.24f, 0.26f, 0.29f, 0.36f, 0.38f, 0.41f);
+        cloudSceneHome(220.0f + cloudOffsetX_layerA * 0.5f, 632.0f, 0.8f);
+        cloudSceneHome(620.0f + cloudOffsetX_layerB * 0.5f, 654.0f, 0.75f);
+        cloudSceneHome(850.0f + cloudOffsetX_layerC * 0.5f, 600.0f, 0.7f);
+    }
+
     homeGround(false);
-    tree(88, 120);
-    tree(840, 132);
-    tree(948, 124);
+
+    tree(60.0f, 120.0f);
+    tree(1120.0f, 125.0f);
+    tree(1050.0f, 118.0f);
+    tree(980.0f, 128.0f);
+
     house(false);
     drawCar(scene1_carPosX, scene1_carPosY, 0.84f, 0.20f, 0.18f, wheelRotationAngle, false, false, true);
     drawGarageDoor();
@@ -1424,11 +1740,16 @@ void scene8() {
 void scene9() {
     gradSky(0.05f, 0.08f, 0.18f, 0.11f, 0.16f, 0.28f);
     stars();
-    moon(1030, 620);
+    moonSceneHome(1050.0f, 620.0f);
+
     homeGround(true);
-    tree(88, 120);
-    tree(840, 132);
-    tree(948, 124);
+    drawFireflies();
+
+    tree(60.0f, 120.0f);
+    tree(1120.0f, 125.0f);
+    tree(1050.0f, 118.0f);
+    tree(980.0f, 128.0f);
+
     house(isHouseLightOn);
     bool headOn = (carState_scene9 != 2);
     drawCar(scene9_carPosX, scene9_carPosY, 0.84f, 0.20f, 0.18f, wheelRotationAngle, headOn, true, true);
@@ -1447,7 +1768,12 @@ void resetScene(int idx);
 // ============================================
 
 void anim1() {
-    if (carState_scene1 == 0) carState_scene1 = 1;
+    const float scene1RoadTravelY = 50.0f;
+    const float scene1ExitCheckX = 1350.0f;
+
+    if (carState_scene1 == 0) {
+        carState_scene1 = 1;
+    }
     else if (carState_scene1 == 1) {
         garageDoorOpenAmount += 1.5f * animationSpeed;
         if (garageDoorOpenAmount >= homeGarageDoorHeight - 5.0f) {
@@ -1456,23 +1782,23 @@ void anim1() {
         }
     }
     else if (carState_scene1 == 2) {
-        float sp = 2.0f * animationSpeed;
-        scene1_carPosY -= sp;
-        wheelRotationAngle -= sp * 2.0f;
-        if (scene1_carPosY <= 50.0f) {
-            scene1_carPosY = 50.0f;
+        float speedY = 2.0f * animationSpeed;
+        scene1_carPosY -= speedY;
+        wheelRotationAngle -= speedY * 2.0f;
+        if (scene1_carPosY <= scene1RoadTravelY) {
+            scene1_carPosY = scene1RoadTravelY;
             carState_scene1 = 3;
         }
     }
     else if (carState_scene1 == 3) {
-        float sp = 3.0f * animationSpeed;
-        scene1_carPosX += sp;
-        wheelRotationAngle -= sp * 2.0f;
+        float speed = 3.0f * animationSpeed;
+        scene1_carPosX += speed;
+        wheelRotationAngle -= speed * 2.0f;
         if (garageDoorOpenAmount > 0) {
             garageDoorOpenAmount -= 1.0f * animationSpeed;
             if (garageDoorOpenAmount < 0) garageDoorOpenAmount = 0;
         }
-        if (scene1_carPosX > 1350) {
+        if (scene1_carPosX > scene1ExitCheckX) {
             scene1HasCarExitedScreen = true;
             nextScene();
         }
@@ -1794,26 +2120,35 @@ void anim8() {
 
 void anim9() {
     if (carState_scene9 == 0) {
-        float sp = 3.0f * animationSpeed;
-        scene9_carPosX += sp;
-        wheelRotationAngle -= sp * 2.0f;
-        if (scene9_carPosX >= 296) {
-            scene9_carPosX = 296;
+        float step = 3.0f * animationSpeed;
+        scene9_carPosX += step;
+        wheelRotationAngle -= step * 2.0f;
+
+        if (scene9_carPosX >= 296.0f) {
+            scene9_carPosX = 296.0f;
             carState_scene9 = 1;
         }
     }
     else if (carState_scene9 == 1) {
+        garageDoorOpenAmount += 1.5f * animationSpeed;
+        if (garageDoorOpenAmount >= homeGarageDoorHeight - 5.0f) {
+            garageDoorOpenAmount = homeGarageDoorHeight - 5.0f;
+            carState_scene9 = 2;
+        }
+    }
+    else if (carState_scene9 == 2) {
         float up = 2.0f * animationSpeed;
         scene9_carPosY += up;
         wheelRotationAngle -= up * 1.8f;
-        if (scene9_carPosY >= 330) {
-            scene9_carPosY = 330;
-            carState_scene9 = 2;
+
+        if (scene9_carPosY >= 330.0f) {
+            scene9_carPosY = 330.0f;
+            carState_scene9 = 3;
             scene9ParkingCompleted = true;
             isHouseLightOn = true;
         }
     }
-    else if (carState_scene9 == 2) {
+    else if (carState_scene9 == 3) {
         scene9ParkedFrameCounter++;
         if (garageDoorOpenAmount > 0) {
             garageDoorOpenAmount -= 1.0f * animationSpeed;
@@ -1835,17 +2170,33 @@ void init() {
     glLoadIdentity();
     glOrtho(0, WINDOW_WIDTH, 0, WINDOW_HEIGHT, -1, 1);
     glMatrixMode(GL_MODELVIEW);
+    glEnable(GL_BLEND);
+
     initRain();
+
+    cloudDriftSpeedA = 0.3f + (rand() % 20) / 100.0f;
+    cloudDriftSpeedB = 0.25f + (rand() % 20) / 100.0f;
+    cloudDriftSpeedC = 0.35f + (rand() % 20) / 100.0f;
+
+    for (int i = 0; i < 10; i++) {
+        windowFlickerAmount[i] = 0.85f + (rand() % 30) / 100.0f;
+    }
 }
 
 void resetScene(int idx) {
     if (idx == 1) {
-        scene1_carPosX = 296;
-        scene1_carPosY = 330;
+        const float scene1GarageStartX = 296.0f;
+        const float scene1GarageStartY = 330.0f;
+
+        scene1_carPosX = scene1GarageStartX;
+        scene1_carPosY = scene1GarageStartY;
+        scene1_carAngle = 0.0f;
         wheelRotationAngle = 0;
-        garageDoorOpenAmount = 0;
+        garageDoorOpenAmount = 0.0f;
         carState_scene1 = 0;
         scene1HasCarExitedScreen = false;
+        sunGlowPulse = 0.0f;
+        sunGlowDirection = 1.0f;
     }
     else if (idx == 2) {
         scene2_redCarPosX = -100;
@@ -1903,13 +2254,17 @@ void resetScene(int idx) {
         carState_scene8 = 0;
     }
     else if (idx == 9) {
-        scene9_carPosX = -100;
-        scene9_carPosY = 50;
+        const float scene9GarageStartX = -100.0f;
+        const float scene9GarageStartY = 50.0f;
+
+        scene9_carPosX = scene9GarageStartX;
+        scene9_carPosY = scene9GarageStartY;
+        scene9_carAngle = 0.0f;
         wheelRotationAngle = 0;
         carState_scene9 = 0;
         scene9ParkingCompleted = false;
         isHouseLightOn = false;
-        garageDoorOpenAmount = homeGarageDoorHeight - 5.0f;
+        garageDoorOpenAmount = 0.0f;
     }
 }
 
@@ -1943,6 +2298,24 @@ void display() {
 
 void update(int val) {
     if (!isPaused) {
+        sunGlowPulse += 0.01f * sunGlowDirection * animationSpeed;
+        if (sunGlowPulse >= 1.0f) { sunGlowPulse = 1.0f; sunGlowDirection = -1.0f; }
+        if (sunGlowPulse <= 0.0f) { sunGlowPulse = 0.0f; sunGlowDirection = 1.0f; }
+
+        grassSwayTimer += 1.0f * animationSpeed;
+
+        cloudOffsetX_layerA += cloudDriftSpeedA * animationSpeed;
+        cloudOffsetX_layerB += cloudDriftSpeedB * animationSpeed;
+        cloudOffsetX_layerC += cloudDriftSpeedC * animationSpeed;
+        if (cloudOffsetX_layerA > 1400) cloudOffsetX_layerA = -300;
+        if (cloudOffsetX_layerB > 1400) cloudOffsetX_layerB = -300;
+        if (cloudOffsetX_layerC > 1400) cloudOffsetX_layerC = -300;
+
+        windowFlickerTimer += 1.0f * animationSpeed;
+        for (int i = 0; i < 10; i++) {
+            windowFlickerAmount[i] = 0.85f + 0.15f * sin(windowFlickerTimer * 0.03f + i * 1.2f);
+        }
+
         if (currentScene == 1) anim1();
         else if (currentScene == 2) anim2();
         else if (currentScene == 3) anim3();
