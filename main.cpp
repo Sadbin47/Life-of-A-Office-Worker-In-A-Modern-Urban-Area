@@ -49,6 +49,9 @@ float scene1_carPosY = 50.0f;
 int carState_scene1 = 0;
 bool scene1HasCarExitedScreen = false;
 float scene1_carAngle = 0.0f;
+float scene1_planeX = 980.0f;
+float scene1_planeY = 780.0f;
+float scene1_planeTilt = 200.0f;
 
 // ============================================
 // SCENE 2 VARIABLES
@@ -125,6 +128,20 @@ int carState_scene7 = 0;
 float scene7_rampProgress = 1.0f;
 
 // ============================================
+// BIRD ANIMATION VARIABLES
+// ============================================
+struct Bird {
+    float x, y;
+    float vx, vy;
+    float wingAngle;
+    float wingSpeed;
+    bool isFlying;
+};
+
+const int BIRD_COUNT = 5;
+Bird birds[BIRD_COUNT];
+
+// ============================================
 // SCENE 8 VARIABLES
 // ============================================
 float scene8_redCarPosX = -100.0f;
@@ -150,6 +167,10 @@ int sceneFrameCounter = 0;
 int scene9ParkedFrameCounter = 0;
 float windowFlickerTimer = 0.0f;
 float windowFlickerAmount[10];
+
+float clamp(float v, float mn, float mx) {
+    return v < mn ? mn : (v > mx ? mx : v);
+}
 
 // ============================================
 // BASIC SHAPES
@@ -365,7 +386,13 @@ void drawRain() {
     glColor3f(0.70f, 0.74f, 0.80f);
     glLineWidth(1.4f);
     glBegin(GL_LINES);
-    for (int i = 0; i < RAIN_DROP_COUNT; i++) { glVertex2f(rainDropX[i], rainDropY[i]); glVertex2f(rainDropX[i] + 3.0f, rainDropY[i] -14.0f); }
+    for (int i = 0; i < RAIN_DROP_COUNT; i++) {
+        float x = rainDropX[i];
+        float y = rainDropY[i];
+        glVertex2f(x, y); glVertex2f(x + 3.0f, y -14.0f);
+        glVertex2f(x - WINDOW_WIDTH, y); glVertex2f(x - WINDOW_WIDTH + 3.0f, y -14.0f);
+        glVertex2f(x + WINDOW_WIDTH, y); glVertex2f(x + WINDOW_WIDTH + 3.0f, y -14.0f);
+    }
     glEnd();
     glLineWidth(1.0f);
 }
@@ -514,6 +541,32 @@ void tree(float bx, float by) {
     glVertex2f(bx - 24.0f, by + 95.0f);
     glVertex2f(bx + 24.0f, by + 95.0f);
     glVertex2f(bx, by + 145.0f);
+    glEnd();
+}
+
+void treeAnimated(float bx, float by, float sway) {
+    glColor3f(0.36f, 0.22f, 0.12f);
+    rect(bx - 8.0f, by, 16.0f, 50.0f);
+
+    glColor3f(0.12f, 0.38f, 0.14f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(bx - 40.0f + sway * 0.6f, by + 30.0f);
+    glVertex2f(bx + 40.0f + sway * 0.6f, by + 30.0f);
+    glVertex2f(bx + sway * 1.0f, by + 90.0f);
+    glEnd();
+
+    glColor3f(0.16f, 0.46f, 0.18f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(bx - 32.0f + sway * 0.8f, by + 65.0f);
+    glVertex2f(bx + 32.0f + sway * 0.8f, by + 65.0f);
+    glVertex2f(bx + sway * 1.2f, by + 120.0f);
+    glEnd();
+
+    glColor3f(0.24f, 0.64f, 0.26f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(bx - 24.0f + sway, by + 95.0f);
+    glVertex2f(bx + 24.0f + sway, by + 95.0f);
+    glVertex2f(bx + sway * 1.4f, by + 145.0f);
     glEnd();
 }
 
@@ -782,6 +835,13 @@ void homeGround(bool night) {
 
     glColor3f(0.66f, 0.66f, 0.70f);
     rect(0, (homeRoadBottomY + homeRoadHeight) - 3.0f, 1280.0f, 3.0f);
+
+    // Center dashed lane line for home road (scene 1 and 9)
+    if (night) glColor3f(0.82f, 0.78f, 0.42f);
+    else glColor3f(0.95f, 0.94f, 0.72f);
+    for (float x = 20.0f; x < 1280.0f; x += 76.0f) {
+        rect(x, 54.0f, 42.0f, 4.0f);
+    }
 
     drawGrassField(night);
 
@@ -2180,16 +2240,133 @@ void audienceMember(float x, float y, int variant) {
     rect(x, y - 2, 5, 3);
 }
 
+void initBirds() {
+    for (int i = 0; i < BIRD_COUNT; i++) {
+        birds[i].x = static_cast<float>(rand() % WINDOW_WIDTH);
+        birds[i].y = 480.0f + static_cast<float>(rand() % 200);
+        birds[i].vx = 0.8f + static_cast<float>(rand() % 80) / 100.0f;
+        birds[i].vy = -0.15f + static_cast<float>(rand() % 30) / 100.0f;
+        birds[i].wingAngle = static_cast<float>(rand() % 60 - 30);
+        birds[i].wingSpeed = 1.2f + static_cast<float>(rand() % 120) / 100.0f;
+        birds[i].isFlying = true;
+    }
+}
+
+void updateBirds() {
+    if (isRainEnabled) return;
+
+    float birdMotionScale = 0.75f;
+    for (int i = 0; i < BIRD_COUNT; i++) {
+        if (!birds[i].isFlying) continue;
+
+        birds[i].x += birds[i].vx * animationSpeed * birdMotionScale;
+        birds[i].y += birds[i].vy * animationSpeed * birdMotionScale;
+        birds[i].wingAngle += birds[i].wingSpeed * animationSpeed * birdMotionScale;
+
+        if (birds[i].wingAngle > 35.0f || birds[i].wingAngle < -35.0f) {
+            birds[i].wingSpeed = -birds[i].wingSpeed;
+            birds[i].wingAngle = clamp(birds[i].wingAngle, -35.0f, 35.0f);
+        }
+
+        if (birds[i].x > WINDOW_WIDTH + 40.0f) birds[i].x = -40.0f;
+        if (birds[i].x < -40.0f) birds[i].x = WINDOW_WIDTH + 40.0f;
+        if (birds[i].y > WINDOW_HEIGHT - 40.0f) birds[i].vy = -fabsf(birds[i].vy);
+        if (birds[i].y < 420.0f) birds[i].vy = fabsf(birds[i].vy);
+    }
+}
+
+void drawBirds(bool eveningPalette) {
+    if (isRainEnabled) return;
+
+    glLineWidth(2.0f);
+    if (eveningPalette) glColor3f(0.18f, 0.12f, 0.14f);
+    else glColor3f(0.12f, 0.14f, 0.18f);
+
+    for (int i = 0; i < BIRD_COUNT; i++) {
+        if (!birds[i].isFlying) continue;
+        float x = birds[i].x;
+        float y = birds[i].y;
+        float flap = birds[i].wingAngle * 0.30f;
+
+        glBegin(GL_LINE_STRIP);
+        glVertex2f(x - 12.0f, y - flap);
+        glVertex2f(x, y + flap);
+        glVertex2f(x + 12.0f, y - flap);
+        glEnd();
+    }
+    glLineWidth(1.0f);
+}
+
+void drawScene1Airplane() {
+    glPushMatrix();
+    glTranslatef(scene1_planeX, scene1_planeY, 0.0f);
+    glRotatef(scene1_planeTilt, 0.0f, 0.0f, 1.0f);
+    glScalef(1.45f, 1.45f, 1.0f);
+
+    // Simple side-view airplane. Nose points to +X.
+    glColor3f(0.03f, 0.03f, 0.04f);
+
+    // Main wing
+    glBegin(GL_POLYGON);
+    glVertex2f(-8.0f, 2.0f);
+    glVertex2f(18.0f, 2.0f);
+    glVertex2f(8.0f, -26.0f);
+    glVertex2f(-18.0f, -22.0f);
+    glEnd();
+
+    // Fuselage
+    glColor3f(0.07f, 0.07f, 0.08f);
+    glBegin(GL_POLYGON);
+    glVertex2f(-55.0f, -6.0f);
+    glVertex2f(30.0f, -7.0f);
+    glVertex2f(56.0f, 0.0f);
+    glVertex2f(30.0f, 8.0f);
+    glVertex2f(-55.0f, 7.0f);
+    glEnd();
+
+    // Tail fin
+    glColor3f(0.04f, 0.04f, 0.045f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(-48.0f, 6.0f);
+    glVertex2f(-28.0f, 6.0f);
+    glVertex2f(-44.0f, 26.0f);
+    glEnd();
+
+    // Rear wing
+    glBegin(GL_TRIANGLES);
+    glVertex2f(-50.0f, -4.0f);
+    glVertex2f(-30.0f, -4.0f);
+    glVertex2f(-46.0f, -16.0f);
+    glEnd();
+
+    // Cockpit and windows
+    glColor3f(0.34f, 0.40f, 0.46f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(32.0f, 3.0f);
+    glVertex2f(47.0f, 1.0f);
+    glVertex2f(36.0f, 7.0f);
+    glEnd();
+
+    glColor3f(0.22f, 0.26f, 0.30f);
+    for (float wx = -24.0f; wx <= 12.0f; wx += 12.0f) {
+        ellipse(wx, 3.5f, 2.0f, 1.4f, 10);
+    }
+
+    glPopMatrix();
+}
+
 // ============================================
 // SCENES
 // ============================================
 
 void scene1() {
+    float treeSway = sinf(grassSwayTimer * 0.02f) * 3.0f;
     if (!isRainEnabled) {
         gradSky(0.68f, 0.88f, 0.99f, 0.88f, 0.96f, 1.00f);
         sunSceneHome(1020.0f + sunHorizontalOffset * 0.20f, 620.0f);
         cloudSceneHome(210.0f + cloudOffsetX_layerA * 0.70f, 620.0f, 1.0f);
         cloudSceneHome(520.0f + cloudOffsetX_layerB * 0.60f, 650.0f, 1.0f);
+        drawScene1Airplane();
     }
     else {
         gradSky(0.24f, 0.26f, 0.29f, 0.36f, 0.38f, 0.41f);
@@ -2200,14 +2377,15 @@ void scene1() {
 
     homeGround(false);
 
-    tree(60.0f, 120.0f);
-    tree(1120.0f, 125.0f);
-    tree(1050.0f, 118.0f);
-    tree(980.0f, 128.0f);
+    treeAnimated(60.0f, 120.0f, treeSway * 1.00f);
+    treeAnimated(1120.0f, 125.0f, treeSway * 0.90f);
+    treeAnimated(1050.0f, 118.0f, treeSway * 1.10f);
+    treeAnimated(980.0f, 128.0f, treeSway * 0.80f);
 
     house(false);
     drawCar(scene1_carPosX, scene1_carPosY, 0.84f, 0.20f, 0.18f, wheelRotationAngle, false, false, true);
     drawGarageDoor();
+    drawBirds(false);
 }
 
 void scene2() {
@@ -2231,6 +2409,7 @@ void scene2() {
         );
     }
     drawCar(scene2_redCarPosX, scene2_redCarPosY, 0.84f, 0.20f, 0.18f, wheelRotationAngle, false, false, true);
+    drawBirds(false);
 }
 
 void scene3() {
@@ -2251,6 +2430,7 @@ void scene3() {
     undergroundEntrance();
     float s = 1.0f - 0.3f * scene3_rampProgress;
     if (s > 0.1f) drawCarScaled(scene3_carPosX, scene3_carPosY, 0.84f, 0.20f, 0.18f, wheelRotationAngle, false, false, true, s);
+    drawBirds(false);
 }
 
 void scene4() {
@@ -2654,6 +2834,7 @@ void scene7() {
     undergroundEntrance();
     float s = 1.0f - 0.3f * scene7_rampProgress;
     if (s > 0.1f) drawCarScaled(scene7_carPosX, scene7_carPosY, 0.84f, 0.20f, 0.18f, wheelRotationAngle, true, true, true, s);
+    drawBirds(true);
 }
 
 void scene8() {
@@ -2676,6 +2857,7 @@ void scene8() {
 }
 
 void scene9() {
+    float treeSway = sinf(grassSwayTimer * 0.02f) * 3.0f;
     gradSky(0.05f, 0.08f, 0.18f, 0.11f, 0.16f, 0.28f);
     stars();
     moonSceneHome(1050.0f, 620.0f);
@@ -2683,10 +2865,10 @@ void scene9() {
     homeGround(true);
     if (!isRainEnabled) drawFireflies();
 
-    tree(60.0f, 120.0f);
-    tree(1120.0f, 125.0f);
-    tree(1050.0f, 118.0f);
-    tree(980.0f, 128.0f);
+    treeAnimated(60.0f, 120.0f, treeSway * 1.00f);
+    treeAnimated(1120.0f, 125.0f, treeSway * 0.90f);
+    treeAnimated(1050.0f, 118.0f, treeSway * 1.10f);
+    treeAnimated(980.0f, 128.0f, treeSway * 0.80f);
 
     house(isHouseLightOn);
     bool headOn = (carState_scene9 < 2);
@@ -2706,6 +2888,17 @@ void resetScene(int idx);
 // ============================================
 
 void anim1() {
+    updateBirds();
+    if (!isRainEnabled) {
+        // Single airplane crossing left at a slight downward angle.
+        scene1_planeX -= 0.90f * animationSpeed;
+        scene1_planeY -= 0.30f * animationSpeed;
+        if (scene1_planeX < -260.0f || scene1_planeY < -120.0f) {
+            scene1_planeX = 980.0f + static_cast<float>(rand() % 120);
+            scene1_planeY = 780.0f + static_cast<float>(rand() % 40);
+        }
+    }
+
     const float scene1RoadTravelY = 50.0f;
     const float scene1ExitCheckX = 1350.0f;
 
@@ -2744,6 +2937,7 @@ void anim1() {
 }
 
 void anim2() {
+    updateBirds();
     if (carState_scene2 == 0) {
         scene2_redCarPosX = -100;
         scene2_redCarPosY = 55;
@@ -2811,6 +3005,7 @@ void anim2() {
 }
 
 void anim3() {
+    updateBirds();
     float sX = 640, sY = 50, eX = 700, eY = -40;
     if (carState_scene3 == 0) {
         scene3_carPosX = -100;
@@ -3017,6 +3212,7 @@ void anim6() {
 }
 
 void anim7() {
+    updateBirds();
     float sX = 640, sY = 50, eX = 700, eY = -40;
     if (carState_scene7 == 0) {
         scene7_carPosX = eX;
@@ -3150,6 +3346,8 @@ void init() {
     for (int i = 0; i < 10; i++) {
         windowFlickerAmount[i] = 0.85f + (rand() % 30) / 100.0f;
     }
+
+    initBirds();
 }
 
 void resetScene(int idx) {
@@ -3166,12 +3364,17 @@ void resetScene(int idx) {
         scene1HasCarExitedScreen = false;
         sunGlowPulse = 0.0f;
         sunGlowDirection = 1.0f;
+        scene1_planeX = 980.0f;
+        scene1_planeY = 780.0f;
+        scene1_planeTilt = 200.0f;
+        initBirds();
     }
     else if (idx == 2) {
         scene2_redCarPosX = -100;
         scene2_redCarPosY = 55;
         wheelRotationAngle = 0;
         carState_scene2 = 0;
+        initBirds();
     }
     else if (idx == 3) {
         scene3_carPosX = -100;
@@ -3179,6 +3382,7 @@ void resetScene(int idx) {
         scene3_rampProgress = 0;
         wheelRotationAngle = 0;
         carState_scene3 = 0;
+        initBirds();
     }
     else if (idx == 4) {
         scene4_workerPosX = 1100;
@@ -3226,6 +3430,7 @@ void resetScene(int idx) {
         scene7_rampProgress = 1.0f;
         wheelRotationAngle = 0;
         carState_scene7 = 0;
+        initBirds();
     }
     else if (idx == 8) {
         scene8_redCarPosX = -100;
@@ -3272,7 +3477,7 @@ void display() {
     else if (currentScene == 7) scene7();
     else if (currentScene == 8) scene8();
     else if (currentScene == 9) scene9();
-    if (isRainEnabled && currentScene != 4 && currentScene != 5 && currentScene != 6) drawRain();
+    if (isRainEnabled) drawRain();
     glutSwapBuffers();
 }
 
@@ -3307,8 +3512,8 @@ void update(int val) {
         else if (currentScene == 9) anim9();
         if (isRainEnabled) {
             for (int i = 0; i < RAIN_DROP_COUNT; i++) {
-                rainDropY[i] -= 12.0f;
-                rainDropX[i] -= 2.0f;
+                rainDropY[i] -= 9.0f;
+                rainDropX[i] -= 1.4f;
                 if (rainDropY[i] < 0) {
                     rainDropY[i] = WINDOW_HEIGHT;
                     rainDropX[i] = rand() % WINDOW_WIDTH;
