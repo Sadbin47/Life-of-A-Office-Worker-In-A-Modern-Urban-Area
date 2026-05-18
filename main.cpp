@@ -106,7 +106,7 @@ float scene5_waterBubbleY = 0.0f;
 // ============================================
 // SCENE 6 VARIABLES
 // ============================================
-float scene6_presenterPosX = 1100.0f;
+float scene6_presenterPosX = -80.0f;
 float scene6_presenterPosY = 80.0f;
 int carState_scene6 = 0;
 int scene6_currentSlide = 0;
@@ -126,6 +126,15 @@ float scene7_carPosX = 700.0f;
 float scene7_carPosY = -40.0f;
 int carState_scene7 = 0;
 float scene7_rampProgress = 1.0f;
+
+struct Scene37Airplane {
+    float x, y;
+    float vx;
+    float scale;
+    float propellerRotation;
+};
+
+Scene37Airplane scene37Airplane = {-200.0f, 520.0f, 0.8f, 1.0f, 0.0f};
 
 // ============================================
 // BIRD ANIMATION VARIABLES
@@ -2055,6 +2064,16 @@ void detailedSlideContent(int slideNum, float bx, float by, float bw, float bh) 
     glColor3f(headerColors[index][0] * 0.7f, headerColors[index][1] * 0.7f, headerColors[index][2] * 0.7f);
     rect(bx + 8, by + bh - headerHeight + 8, bw * 0.5f, 10);
     rect(bx + 8, by + bh - headerHeight + 22, bw * 0.35f, 6);
+    glColor3f(0.70f, 0.72f, 0.78f);
+    rect(bx + 12, by + 7, bw - 24, 3);
+    for (int i = 0; i < 4; i++) {
+        if (i == index) glColor3f(headerColors[index][0], headerColors[index][1], headerColors[index][2]);
+        else glColor3f(0.78f, 0.80f, 0.84f);
+        circle(bx + bw - 70 + i * 14, by + 17, 4, 10);
+    }
+    glColor3f(0.58f, 0.60f, 0.66f);
+    rect(bx + 18, by + 16, 74, 4);
+    rect(bx + 18, by + 24, 42, 3);
 
     float centerX = bx + bw * 0.5f;
     float centerY = by + bh * 0.45f;
@@ -2062,17 +2081,54 @@ void detailedSlideContent(int slideNum, float bx, float by, float bw, float bh) 
     float contentHeight = bh * 0.5f;
 
     if (slideNum == 1) {
+        float heroX = bx + bw * 0.31f;
+        float heroY = by + bh * 0.45f;
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(0.18f, 0.28f, 0.55f, 0.08f);
+        circle(heroX, heroY, contentWidth * 0.24f, 36);
+        glColor4f(0.18f, 0.28f, 0.55f, 0.10f);
+        rect(bx + 28, by + 70, bw - 56, 72);
+        glDisable(GL_BLEND);
+
         glColor3f(0.18f, 0.28f, 0.55f);
-        circle(centerX, centerY + 10, contentWidth * 0.12f, 24);
-        glColor3f(0.95f, 0.95f, 0.98f);
-        circle(centerX, centerY + 10, contentWidth * 0.10f, 20);
+        circle(heroX, heroY, contentWidth * 0.16f, 34);
+        glColor3f(0.95f, 0.96f, 0.99f);
+        circle(heroX, heroY, contentWidth * 0.13f, 30);
         glColor3f(0.18f, 0.28f, 0.55f);
-        rect(centerX - 20, by + bh * 0.55f, 40, 5);
-        rect(centerX - 15, by + bh * 0.45f, 30, 5);
-        rect(centerX - 25, by + bh * 0.35f, 50, 5);
-        rect(centerX - 25, by + bh * 0.25f, 50, 5);
-        glColor3f(0.80f, 0.22f, 0.18f);
-        rect(bx + 5, by + bh * 0.68f, bw - 10, 4);
+        glLineWidth(4.0f);
+        glBegin(GL_LINE_STRIP);
+        glVertex2f(heroX - 28, heroY - 2);
+        glVertex2f(heroX - 4, heroY - 16);
+        glVertex2f(heroX + 38, heroY + 24);
+        glEnd();
+        glLineWidth(1.0f);
+
+        float textX = bx + bw * 0.55f;
+        glColor3f(0.18f, 0.28f, 0.55f);
+        rect(textX, by + bh * 0.58f, bw * 0.28f, 8);
+        glColor3f(0.44f, 0.46f, 0.52f);
+        rect(textX, by + bh * 0.51f, bw * 0.34f, 5);
+        rect(textX, by + bh * 0.45f, bw * 0.26f, 5);
+
+        float cardY = by + 55;
+        float cardW = 115;
+        float cardColors[3][3] = {
+            {0.22f, 0.52f, 0.72f},
+            {0.25f, 0.62f, 0.36f},
+            {0.88f, 0.52f, 0.18f}
+        };
+        for (int i = 0; i < 3; i++) {
+            float cardX = bx + 55 + i * 138;
+            glColor3f(0.90f, 0.92f, 0.95f);
+            rect(cardX, cardY, cardW, 42);
+            glColor3f(cardColors[i][0], cardColors[i][1], cardColors[i][2]);
+            rect(cardX, cardY + 35, cardW, 7);
+            circle(cardX + 18, cardY + 19, 7, 14);
+            glColor3f(0.42f, 0.44f, 0.50f);
+            rect(cardX + 34, cardY + 23, 55, 4);
+            rect(cardX + 34, cardY + 14, 70, 4);
+        }
     }
     else if (slideNum == 2) {
         float chartX = bx + 30;
@@ -2186,6 +2242,24 @@ void drawPointerStickEffect(float x, float y, float angle) {
     glPopMatrix();
 }
 
+void drawLaserFromHand(float handX, float handY, float targetX, float targetY) {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glLineWidth(1.5f);
+    glColor4f(1.0f, 0.12f, 0.12f, 0.35f);
+    glBegin(GL_LINES);
+    glVertex2f(handX, handY);
+    glVertex2f(targetX, targetY);
+    glEnd();
+    glLineWidth(1.0f);
+
+    glColor4f(1.0f, 0.12f, 0.12f, 0.70f);
+    circle(handX, handY, 3, 8);
+    glColor4f(1.0f, 0.12f, 0.12f, 0.16f);
+    circle(handX, handY, 7, 10);
+    glDisable(GL_BLEND);
+}
+
 void audiencePersonDetailed(float x, float y, float scale, int variant, float nodOffset) {
     float s = scale;
     float shirtRed;
@@ -2238,6 +2312,64 @@ void audienceMember(float x, float y, int variant) {
     glColor3f(0.25f, 0.20f, 0.12f);
     rect(x - 5, y - 2, 5, 3);
     rect(x, y - 2, 5, 3);
+}
+
+void drawConferenceChair(float x, float y, float scale, float red, float green, float blue) {
+    float s = scale;
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.12f);
+    ellipse(x, y - 2 * s, 34 * s, 7 * s, 18);
+    glDisable(GL_BLEND);
+
+    glColor3f(0.18f, 0.19f, 0.23f);
+    rect(x - 19 * s, y + 4 * s, 38 * s, 7 * s);
+    rect(x - 15 * s, y + 11 * s, 30 * s, 47 * s);
+    glColor3f(red * 0.78f, green * 0.78f, blue * 0.78f);
+    rect(x - 17 * s, y + 13 * s, 34 * s, 40 * s);
+    glColor3f(red, green, blue);
+    rect(x - 15 * s, y + 50 * s, 30 * s, 8 * s);
+
+    glColor3f(0.13f, 0.14f, 0.17f);
+    rect(x - 16 * s, y - 12 * s, 4 * s, 18 * s);
+    rect(x + 12 * s, y - 12 * s, 4 * s, 18 * s);
+    rect(x - 24 * s, y - 15 * s, 12 * s, 3 * s);
+    rect(x + 12 * s, y - 15 * s, 12 * s, 3 * s);
+}
+
+void drawScene6TableDetails(float baseX, float baseY) {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(0.05f, 0.04f, 0.03f, 0.18f);
+    ellipse(baseX + 84, baseY - 5, 44, 6, 18);
+    ellipse(baseX + 545, baseY - 3, 34, 5, 16);
+    glDisable(GL_BLEND);
+
+    glColor3f(0.08f, 0.09f, 0.11f);
+    rect(baseX + 40, baseY + 4, 68, 6);
+    glColor3f(0.18f, 0.20f, 0.23f);
+    rect(baseX + 44, baseY + 10, 58, 30);
+    glColor3f(0.05f, 0.06f, 0.08f);
+    rect(baseX + 47, baseY + 34, 52, 4);
+    glColor3f(0.72f, 0.82f, 0.92f);
+    rect(baseX + 50, baseY + 15, 46, 17);
+
+    glColor3f(0.86f, 0.86f, 0.82f);
+    rect(baseX + 140, baseY + 7, 72, 4);
+    rect(baseX + 143, baseY + 13, 62, 3);
+    rect(baseX + 143, baseY + 19, 48, 3);
+    glColor3f(0.72f, 0.20f, 0.18f);
+    rect(baseX + 136, baseY + 7, 3, 17);
+
+    glColor3f(0.20f, 0.22f, 0.25f);
+    rect(baseX + 510, baseY + 5, 64, 3);
+    glColor3f(0.68f, 0.70f, 0.74f);
+    rect(baseX + 516, baseY + 8, 48, 4);
+    glColor3f(0.12f, 0.14f, 0.16f);
+    rect(baseX + 522, baseY + 12, 36, 18);
+    glColor3f(0.35f, 0.48f, 0.62f);
+    rect(baseX + 526, baseY + 16, 28, 10);
 }
 
 void initBirds() {
@@ -2295,6 +2427,95 @@ void drawBirds(bool eveningPalette) {
         glEnd();
     }
     glLineWidth(1.0f);
+}
+
+void drawScene37Airplane() {
+    glPushMatrix();
+    glTranslatef(scene37Airplane.x, scene37Airplane.y, 0.0f);
+    glScalef(scene37Airplane.scale, scene37Airplane.scale, 1.0f);
+
+    glColor3f(0.3f, 0.7f, 0.95f);
+    glBegin(GL_POLYGON);
+    glVertex2f(-15.0f, 0.0f);
+    glVertex2f(35.0f, 0.0f);
+    glVertex2f(38.0f, 3.0f);
+    glVertex2f(-12.0f, 3.0f);
+    glEnd();
+
+    glColor3f(0.1f, 0.3f, 0.6f);
+    glBegin(GL_POLYGON);
+    glVertex2f(30.0f, 0.5f);
+    glVertex2f(38.0f, 1.5f);
+    glVertex2f(40.0f, 1.5f);
+    glVertex2f(32.0f, 0.5f);
+    glEnd();
+
+    glColor3f(0.2f, 0.6f, 0.9f);
+    glBegin(GL_POLYGON);
+    glVertex2f(5.0f, 3.0f);
+    glVertex2f(20.0f, 3.0f);
+    glVertex2f(22.0f, 15.0f);
+    glVertex2f(3.0f, 15.0f);
+    glEnd();
+
+    glColor3f(0.15f, 0.5f, 0.85f);
+    glBegin(GL_POLYGON);
+    glVertex2f(5.0f, 0.0f);
+    glVertex2f(20.0f, 0.0f);
+    glVertex2f(22.0f, -12.0f);
+    glVertex2f(3.0f, -12.0f);
+    glEnd();
+
+    glColor3f(0.25f, 0.65f, 0.92f);
+    glBegin(GL_POLYGON);
+    glVertex2f(-12.0f, 0.5f);
+    glVertex2f(-10.0f, 0.5f);
+    glVertex2f(-8.0f, 10.0f);
+    glVertex2f(-14.0f, 10.0f);
+    glEnd();
+
+    glColor3f(0.2f, 0.6f, 0.9f);
+    glBegin(GL_POLYGON);
+    glVertex2f(-10.0f, 0.0f);
+    glVertex2f(-5.0f, 0.0f);
+    glVertex2f(-4.0f, -6.0f);
+    glVertex2f(-11.0f, -6.0f);
+    glEnd();
+
+    glPushMatrix();
+    glTranslatef(38.0f, 1.5f, 0.0f);
+    glRotatef(scene37Airplane.propellerRotation, 0.0f, 0.0f, 1.0f);
+    glColor3f(0.4f, 0.4f, 0.4f);
+    glBegin(GL_POLYGON);
+    glVertex2f(-1.5f, -12.0f);
+    glVertex2f(-0.5f, -12.0f);
+    glVertex2f(0.5f, 12.0f);
+    glVertex2f(-0.5f, 12.0f);
+    glEnd();
+    glBegin(GL_POLYGON);
+    glVertex2f(-12.0f, -1.5f);
+    glVertex2f(-12.0f, -0.5f);
+    glVertex2f(12.0f, 0.5f);
+    glVertex2f(12.0f, -0.5f);
+    glEnd();
+    glColor3f(0.5f, 0.5f, 0.5f);
+    circle(0.0f, 0.0f, 2.0f, 16);
+    glPopMatrix();
+
+    glColor3f(0.8f, 0.9f, 1.0f);
+    circle(35.0f, 1.5f, 2.0f, 12);
+    glPopMatrix();
+}
+
+void updateScene37Airplane() {
+    scene37Airplane.x += scene37Airplane.vx * animationSpeed;
+    scene37Airplane.propellerRotation += 15.0f * animationSpeed;
+    if (scene37Airplane.propellerRotation >= 360.0f) {
+        scene37Airplane.propellerRotation -= 360.0f;
+    }
+    if (scene37Airplane.x > WINDOW_WIDTH + 120.0f) {
+        scene37Airplane.x = -220.0f;
+    }
 }
 
 void drawScene1Airplane() {
@@ -2417,6 +2638,7 @@ void scene3() {
         gradSky(0.68f, 0.88f, 0.99f, 0.88f, 0.96f, 1.00f);
         sun(900, 600);
         cloud(300, 620);
+        drawScene37Airplane();
     } else {
         gradSky(0.24f, 0.26f, 0.29f, 0.36f, 0.38f, 0.41f);
         cloud(260, 632);
@@ -2649,6 +2871,10 @@ void scene6() {
 
     glColor3f(0.70f, 0.72f, 0.76f);
     rect(0, 250, 1280, 355);
+    glColor3f(0.62f, 0.64f, 0.68f);
+    for (float panelX = 120; panelX < 1260; panelX += 190) rect(panelX, 270, 2, 315);
+    glColor3f(0.78f, 0.79f, 0.82f);
+    rect(0, 585, 1280, 5);
 
     glColor3f(0.20f, 0.22f, 0.26f);
     rect(0, 0, 1280, 250);
@@ -2745,50 +2971,17 @@ void scene6() {
     glColor4f(0.90f, 0.86f, 0.80f, 0.08f);
     rect(490, 238, 700, 6);
     glDisable(GL_BLEND);
+    drawScene6TableDetails(500, 254);
 
-    for (int i = 0; i < 4; i++) {
-        float audienceX = 575 + i * 130;
-        float nod = sinf(scene6_audienceNod[i] + i * 1.2f) * 1.5f;
-        audiencePersonDetailed(audienceX, 140, 0.92f, i + 3, nod);
+    for (int i = 0; i < 5; i++) {
+        float emptyChairX = 520 + i * 130;
+        drawConferenceChair(emptyChairX, 118, 1.05f, 0.24f, 0.25f, 0.30f);
     }
 
     for (int i = 0; i < 4; i++) {
-        float audienceX = 570 + i * 130;
-        float audienceY = 140;
-        float scale = 0.92f;
-        float shirtRed;
-        float shirtGreen;
-        float shirtBlue;
-        if (i % 4 == 0) {
-            shirtRed = 0.28f; shirtGreen = 0.32f; shirtBlue = 0.52f;
-        } else if (i % 4 == 1) {
-            shirtRed = 0.48f; shirtGreen = 0.22f; shirtBlue = 0.22f;
-        } else if (i % 4 == 2) {
-            shirtRed = 0.22f; shirtGreen = 0.38f; shirtBlue = 0.28f;
-        } else {
-            shirtRed = 0.40f; shirtGreen = 0.38f; shirtBlue = 0.22f;
-        }
-
-        glColor3f(shirtRed * 0.85f, shirtGreen * 0.85f, shirtBlue * 0.85f);
-        rect(audienceX - 17 * scale, audienceY + 52 * scale, 34 * scale, 50 * scale);
-        glColor3f(shirtRed * 0.70f, shirtGreen * 0.70f, shirtBlue * 0.70f);
-        rect(audienceX - 15 * scale, audienceY + 54 * scale, 30 * scale, 46 * scale);
-        glColor3f(shirtRed * 0.90f, shirtGreen * 0.90f, shirtBlue * 0.90f);
-        rect(audienceX - 18 * scale, audienceY + 94 * scale, 36 * scale, 10 * scale);
-        glColor3f(0.82f, 0.68f, 0.55f);
-        rect(audienceX - 4 * scale, audienceY + 102 * scale, 8 * scale, 10 * scale);
-        glColor3f(0.88f, 0.72f, 0.58f);
-        ellipse(audienceX, audienceY + 120 * scale, 15 * scale, 17 * scale, 22);
-        glColor3f(0.18f, 0.12f, 0.06f + (i % 3) * 0.04f);
-        ellipse(audienceX, audienceY + 128 * scale, 16 * scale, 12 * scale, 20);
-        rect(audienceX - 16 * scale, audienceY + 112 * scale, 32 * scale, 16 * scale);
-        glColor3f(0.82f, 0.68f, 0.55f);
-        ellipse(audienceX - 15 * scale, audienceY + 118 * scale, 3 * scale, 5 * scale, 10);
-        ellipse(audienceX + 15 * scale, audienceY + 118 * scale, 3 * scale, 5 * scale, 10);
-        glColor3f(0.92f, 0.92f, 0.88f);
-        rect(audienceX - 16 * scale, audienceY + 48 * scale, 32 * scale, 4 * scale);
-        glColor3f(0.65f, 0.65f, 0.70f);
-        rect(audienceX - 14 * scale, audienceY + 49 * scale, 28 * scale, 1.5f * scale);
+        float audienceX = 575 + i * 130;
+        float nod = sinf(scene6_audienceNod[i] + i * 1.2f) * 1.8f;
+        audiencePersonDetailed(audienceX, 136, 1.28f, i + 3, nod);
     }
 
     glColor3f(0.30f, 0.30f, 0.34f);
@@ -2806,9 +2999,13 @@ void scene6() {
     ellipse(scene6_presenterPosX, 145, 22, 6, 14);
     glDisable(GL_BLEND);
 
-    if (scene6_currentSlide > 1 && scene6_currentSlide < 5) {
+    bool isPresentationActive = (carState_scene6 >= 3 && carState_scene6 <= 5);
+    if (isPresentationActive && scene6_currentSlide > 1 && scene6_currentSlide < 5) {
         float dotX = 310 + sinf(scene6_pointerAngle * 0.5f) * 90;
         float dotY = 420 + cosf(scene6_pointerAngle * 0.3f) * 60;
+        float handX = scene6_presenterPosX - 19.0f;
+        float handY = scene6_presenterPosY + 58.0f;
+        drawLaserFromHand(handX, handY, dotX, dotY);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glColor4f(1.0f, 0.12f, 0.12f, 0.85f);
@@ -2816,7 +3013,6 @@ void scene6() {
         glColor4f(1.0f, 0.12f, 0.12f, 0.20f);
         circle(dotX, dotY, 9, 12);
         glDisable(GL_BLEND);
-        drawPointerStickEffect(scene6_presenterPosX - 18, scene6_presenterPosY + 110, scene6_presenterArmAngle);
     }
 
     float walkSwing = (carState_scene6 == 1) ? sinf(scene6_pointerAngle * 8.0f) * 18.0f : 5.0f;
@@ -2827,6 +3023,7 @@ void scene7() {
     gradSky(0.85f, 0.55f, 0.30f, 0.42f, 0.30f, 0.55f);
     sun(100, 200);
     cloud(400, 550);
+    if (!isRainEnabled) drawScene37Airplane();
     tree(80, 155);
     tree(1100, 160);
     officeBuildingExterior(true);
@@ -3006,6 +3203,7 @@ void anim2() {
 
 void anim3() {
     updateBirds();
+    updateScene37Airplane();
     float sX = 640, sY = 50, eX = 700, eY = -40;
     if (carState_scene3 == 0) {
         scene3_carPosX = -100;
@@ -3133,7 +3331,7 @@ void anim6() {
     }
 
     if (carState_scene6 == 0) {
-        scene6_presenterPosX = 1380.0f;
+        scene6_presenterPosX = -80.0f;
         scene6_presenterPosY = 140.0f;
         scene6_currentSlide = 0;
         scene6_slideTimer = 0;
@@ -3145,8 +3343,8 @@ void anim6() {
         carState_scene6 = 1;
     }
     else if (carState_scene6 == 1) {
-        scene6_presenterPosX -= 2.5f * animationSpeed;
-        if (scene6_presenterPosX <= 440.0f) {
+        scene6_presenterPosX += 2.5f * animationSpeed;
+        if (scene6_presenterPosX >= 440.0f) {
             scene6_presenterPosX = 440.0f;
             carState_scene6 = 2;
         }
@@ -3201,10 +3399,10 @@ void anim6() {
         }
     }
     else if (carState_scene6 == 7) {
-        scene6_presenterPosX += 3.5f * animationSpeed;
+        scene6_presenterPosX -= 3.5f * animationSpeed;
         scene6_projectorGlow -= 0.025f * animationSpeed;
         if (scene6_projectorGlow < 0.0f) scene6_projectorGlow = 0.0f;
-        if (scene6_presenterPosX > 1400.0f) {
+        if (scene6_presenterPosX < -120.0f) {
             carState_scene6 = 8;
             nextScene();
         }
@@ -3213,6 +3411,7 @@ void anim6() {
 
 void anim7() {
     updateBirds();
+    updateScene37Airplane();
     float sX = 640, sY = 50, eX = 700, eY = -40;
     if (carState_scene7 == 0) {
         scene7_carPosX = eX;
@@ -3380,6 +3579,11 @@ void resetScene(int idx) {
         scene3_carPosX = -100;
         scene3_carPosY = 50;
         scene3_rampProgress = 0;
+        scene37Airplane.x = -200.0f;
+        scene37Airplane.y = 520.0f;
+        scene37Airplane.vx = 0.8f;
+        scene37Airplane.scale = 1.0f;
+        scene37Airplane.propellerRotation = 0.0f;
         wheelRotationAngle = 0;
         carState_scene3 = 0;
         initBirds();
@@ -3411,7 +3615,7 @@ void resetScene(int idx) {
         carState_scene5 = 0;
     }
     else if (idx == 6) {
-        scene6_presenterPosX = 1380.0f;
+        scene6_presenterPosX = -80.0f;
         scene6_presenterPosY = 140.0f;
         scene6_currentSlide = 0;
         scene6_slideTimer = 0;
@@ -3428,6 +3632,11 @@ void resetScene(int idx) {
         scene7_carPosX = 700;
         scene7_carPosY = -40;
         scene7_rampProgress = 1.0f;
+        scene37Airplane.x = -200.0f;
+        scene37Airplane.y = 500.0f;
+        scene37Airplane.vx = 0.8f;
+        scene37Airplane.scale = 1.0f;
+        scene37Airplane.propellerRotation = 0.0f;
         wheelRotationAngle = 0;
         carState_scene7 = 0;
         initBirds();
